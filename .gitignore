@@ -1,0 +1,29 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+*.swp
+
+# Env
+.env
+.env.*.local
+
+# Ruby / Rails
+backend/log/*
+backend/tmp/*
+backend/storage/*
+backend/.byebug_history
+backend/node_modules/
+!backend/log/.keep
+!backend/tmp/.keep
+!backend/storage/.keep
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/.vite/
+
+# Coverage
+coverage/
