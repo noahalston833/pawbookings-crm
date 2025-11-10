@@ -1,0 +1,21 @@
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: ${DATABASE_USERNAME:-pawbookings}
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-pawbookings}
+      # Postgres creates this DB on first boot; Rails creates the actual
+      # per-environment databases (backend_development/backend_test) itself.
+      POSTGRES_DB: postgres
+    ports:
+      - "${DATABASE_PORT:-5432}:5432"
+    volumes:
+      - pawbookings_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DATABASE_USERNAME:-pawbookings}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pawbookings_pg_data:
