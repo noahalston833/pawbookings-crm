@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+# Runs security scans: Brakeman + Bundler Audit (backend), npm audit (frontend).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> Backend: Brakeman static analysis"
+(cd backend && bundle exec brakeman -q)
+
+echo "==> Backend: Bundler Audit (gem CVEs)"
+(cd backend && bundle exec bundler-audit check --update)
+
+echo "==> Frontend: npm audit"
+# high/critical only: low/moderate transitive advisories with no available
+# fix would otherwise fail this on every run regardless of our own code.
+(cd frontend && npm audit --audit-level=high)

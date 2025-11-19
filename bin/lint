@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+# Runs linters for both apps: RuboCop (backend), ESLint (frontend).
+set -euo pipefail
+cd "$(dirname "$0")/.."
+
+echo "==> Backend: RuboCop"
+(cd backend && bundle exec rubocop)
+
+echo "==> Frontend: ESLint"
+(cd frontend && npm run lint)
