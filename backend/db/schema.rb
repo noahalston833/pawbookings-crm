@@ -10,9 +10,31 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_17_190006) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_17_235618) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "businesses", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.json "settings", default: {}, null: false
+    t.string "slug", null: false
+    t.string "time_zone", default: "UTC", null: false
+    t.datetime "updated_at", null: false
+    t.index ["slug"], name: "index_businesses_on_slug", unique: true
+  end
+
+  create_table "memberships", force: :cascade do |t|
+    t.bigint "business_id", null: false
+    t.datetime "created_at", null: false
+    t.string "role", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["business_id", "user_id"], name: "index_memberships_on_business_id_and_user_id", unique: true
+    t.index ["business_id"], name: "index_memberships_on_business_id"
+    t.index ["user_id"], name: "index_memberships_on_user_id"
+    t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'staff'::character varying, 'customer'::character varying]::text[])", name: "memberships_role_check"
+  end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
     t.string "concurrency_key", null: false
@@ -135,6 +157,17 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_190006) do
     t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
   end
 
+  create_table "users", force: :cascade do |t|
+    t.datetime "created_at", null: false
+    t.string "email", null: false
+    t.string "password_digest", null: false
+    t.boolean "platform_admin", default: false, null: false
+    t.datetime "updated_at", null: false
+    t.index ["email"], name: "index_users_on_email", unique: true
+  end
+
+  add_foreign_key "memberships", "businesses"
+  add_foreign_key "memberships", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
