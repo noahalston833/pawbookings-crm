@@ -43,6 +43,11 @@ RSpec.configure do |config|
   # Lets specs call create(...)/build(...) directly instead of FactoryBot.create(...).
   config.include FactoryBot::Syntax::Methods
 
+  # Rails.cache (used for login rate limiting) isn't rolled back by the
+  # per-example DB transaction, so state from one example (e.g. failed
+  # login attempts) would otherwise leak into the next.
+  config.before { Rails.cache.clear }
+
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
   # instead of true.

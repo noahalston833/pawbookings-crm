@@ -40,5 +40,18 @@ module Backend
     # Middleware like session, flash, cookies can be added back manually.
     # Skip views, helpers and assets when generating a new resource.
     config.api_only = true
+
+    # Cookie sessions instead of bearer tokens stored in the browser (see
+    # docs/decisions/0002) -- API-only mode strips this middleware by
+    # default, so it's added back explicitly. HttpOnly (default for
+    # sessions) keeps the cookie unreadable from JS; Secure requires HTTPS
+    # in production; SameSite=Lax blocks the cookie being sent on
+    # cross-site requests initiated by other sites.
+    config.session_store :cookie_store,
+                          key: "_pawbookings_session",
+                          secure: Rails.env.production?,
+                          same_site: :lax
+    config.middleware.use ActionDispatch::Cookies
+    config.middleware.use config.session_store, config.session_options
   end
 end

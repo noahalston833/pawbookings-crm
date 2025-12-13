@@ -43,6 +43,12 @@ Rails.application.configure do
   # Don't log any deprecations.
   config.active_support.report_deprecations = false
 
+  # In-process memory store. Only correct for a single-process deployment
+  # (rate limiting state wouldn't be shared across processes/dynos) -- a
+  # multi-process deploy would need a shared store like Redis instead.
+  # Revisit if/when this app scales beyond one process.
+  config.cache_store = :memory_store
+
   # Replace the default in-process and non-durable queuing backend for Active Job.
   # Solid Queue tables live in the primary database (see docs/decisions) so
   # there is only one database to provision, back up, and migrate.
@@ -82,4 +88,7 @@ Rails.application.configure do
   #
   # Skip DNS rebinding protection for the default health check endpoint.
   # config.host_authorization = { exclude: ->(request) { request.path == "/up" } }
+
+  # See the matching comment in development.rb for why this is explicit.
+  config.action_controller.allow_forgery_protection = true
 end
