@@ -10,6 +10,7 @@ module ErrorHandling
     rescue_from ActiveRecord::RecordInvalid, with: :render_validation_error
     rescue_from ActionController::ParameterMissing, with: :render_bad_request
     rescue_from ActionController::InvalidAuthenticityToken, with: :render_invalid_csrf_token
+    rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
   end
 
   private
@@ -51,6 +52,14 @@ module ErrorHandling
       status: :unprocessable_content,
       code: "invalid_csrf_token",
       message: "Your session expired or the request could not be verified. Please refresh and try again."
+    )
+  end
+
+  def render_forbidden(_exception)
+    render_error(
+      status: :forbidden,
+      code: "forbidden",
+      message: "You do not have permission to do that."
     )
   end
 

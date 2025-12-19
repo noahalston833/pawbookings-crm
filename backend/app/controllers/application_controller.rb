@@ -1,6 +1,7 @@
 class ApplicationController < ActionController::API
   include ActionController::RequestForgeryProtection
   include ErrorHandling
+  include Pundit::Authorization
 
   protect_from_forgery with: :exception
 
@@ -30,5 +31,12 @@ class ApplicationController < ActionController::API
       code: "authentication_required",
       message: "You must be logged in to do that."
     )
+  end
+
+  # Policies receive the caller's Membership (role within Current.business)
+  # rather than the raw User -- role is meaningless without knowing which
+  # business it applies to.
+  def pundit_user
+    Current.membership
   end
 end

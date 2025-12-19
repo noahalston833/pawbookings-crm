@@ -8,6 +8,13 @@ Rails.application.routes.draw do
       resource :csrf_token, only: :show, controller: "csrf_tokens"
       resource :session, only: %i[create destroy]
       resources :business_registrations, only: :create
+
+      resources :businesses, only: [], param: :slug do
+        scope module: :businesses do
+          resource :customer_registration, only: :create
+          resources :memberships, only: %i[index update destroy]
+        end
+      end
     end
   end
 end
