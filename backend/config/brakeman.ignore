@@ -1,0 +1,13 @@
+{
+  "ignored_warnings": [
+    {
+      "fingerprint": "7a61adc91b906a27583e924d54cbeb800149213b95fa1c3c756c00599720394c",
+      "note": "role is intentionally mass-assignable here. MembershipPolicy#update? checks the attempted role transition (via record.role/role_was after assign_attributes, before save) and blocks granting owner or touching an existing owner's membership for non-owners -- see spec/requests/api/v1/businesses/memberships_spec.rb.",
+      "code": null,
+      "cwe_id": [],
+      "link": null
+    }
+  ],
+  "updated": "2026-08-17 20:20:00 -0400",
+  "brakeman_version": "8.0.6"
+}
