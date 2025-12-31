@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_17_235618) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_001913) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -34,6 +34,34 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_235618) do
     t.index ["business_id"], name: "index_memberships_on_business_id"
     t.index ["user_id"], name: "index_memberships_on_user_id"
     t.check_constraint "role::text = ANY (ARRAY['owner'::character varying, 'admin'::character varying, 'staff'::character varying, 'customer'::character varying]::text[])", name: "memberships_role_check"
+  end
+
+  create_table "pets", force: :cascade do |t|
+    t.text "behavioral_notes"
+    t.date "birth_date"
+    t.string "breed"
+    t.bigint "business_id", null: false
+    t.datetime "created_at", null: false
+    t.text "emergency_notes"
+    t.text "feeding_instructions"
+    t.text "medication_instructions"
+    t.string "name", null: false
+    t.string "sex", null: false
+    t.string "species", null: false
+    t.string "status", default: "active", null: false
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.date "vaccination_expires_on"
+    t.string "vaccination_status", default: "unknown", null: false
+    t.decimal "weight", precision: 5, scale: 2
+    t.index ["business_id", "user_id"], name: "index_pets_on_business_id_and_user_id"
+    t.index ["business_id"], name: "index_pets_on_business_id"
+    t.index ["user_id"], name: "index_pets_on_user_id"
+    t.check_constraint "sex::text = ANY (ARRAY['male'::character varying, 'female'::character varying]::text[])", name: "pets_sex_check"
+    t.check_constraint "species::text = 'dog'::text", name: "pets_species_check"
+    t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'archived'::character varying]::text[])", name: "pets_status_check"
+    t.check_constraint "vaccination_status::text = ANY (ARRAY['up_to_date'::character varying, 'expired'::character varying, 'unknown'::character varying]::text[])", name: "pets_vaccination_status_check"
+    t.check_constraint "weight IS NULL OR weight > 0::numeric", name: "pets_weight_positive_check"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -168,6 +196,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_17_235618) do
 
   add_foreign_key "memberships", "businesses"
   add_foreign_key "memberships", "users"
+  add_foreign_key "pets", "businesses"
+  add_foreign_key "pets", "users"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

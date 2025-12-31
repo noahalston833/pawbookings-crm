@@ -13,6 +13,7 @@ Rails.application.routes.draw do
         scope module: :businesses do
           resource :customer_registration, only: :create
           resources :memberships, only: %i[index update destroy]
+          resources :pets, only: %i[index show create update]
         end
       end
     end

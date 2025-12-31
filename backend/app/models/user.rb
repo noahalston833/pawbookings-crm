@@ -5,6 +5,7 @@ class User < ApplicationRecord
 
   has_many :memberships, dependent: :destroy
   has_many :businesses, through: :memberships
+  has_many :pets, dependent: :destroy
 
   validates :email, presence: true, uniqueness: { case_sensitive: false },
                      format: { with: URI::MailTo::EMAIL_REGEXP }
