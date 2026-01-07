@@ -7,6 +7,16 @@ class BusinessSignup
 
   DEFAULT_SETTINGS = { "cancellation_window_hours" => 24 }.freeze
 
+  # One of each service kind so a new business has something bookable
+  # (and something to see in the dashboard) immediately after signup,
+  # without forcing the owner through setup steps before the demo/trial
+  # value of the product is visible.
+  DEFAULT_SERVICE_OFFERINGS = [
+    { name: "Daycare", service_kind: "daycare", default_capacity: 10 },
+    { name: "Training", service_kind: "training", default_capacity: 1, default_duration_minutes: 60 },
+    { name: "Boarding", service_kind: "boarding", default_capacity: 5 }
+  ].freeze
+
   def initialize(business_name:, business_slug:, time_zone:, owner_email:, owner_password:)
     @business_name = business_name
     @business_slug = business_slug
@@ -27,6 +37,7 @@ class BusinessSignup
       )
       user = User.create!(email: @owner_email, password: @owner_password)
       business.memberships.create!(user: user, role: :owner)
+      DEFAULT_SERVICE_OFFERINGS.each { |attrs| business.service_offerings.create!(attrs) }
     end
 
     Result.new(success?: true, business: business, user: user, errors: nil)

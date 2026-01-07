@@ -10,9 +10,26 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_001913) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_003030) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "availability_slots", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.bigint "business_id", null: false
+    t.integer "capacity", null: false
+    t.datetime "created_at", null: false
+    t.datetime "ends_at", null: false
+    t.bigint "service_offering_id", null: false
+    t.datetime "starts_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["business_id"], name: "index_availability_slots_on_business_id"
+    t.index ["service_offering_id", "starts_at", "ends_at"], name: "index_availability_slots_on_offering_and_window", unique: true
+    t.index ["service_offering_id", "starts_at"], name: "index_availability_slots_on_service_offering_id_and_starts_at"
+    t.index ["service_offering_id"], name: "index_availability_slots_on_service_offering_id"
+    t.check_constraint "capacity > 0", name: "availability_slots_capacity_positive_check"
+    t.check_constraint "ends_at > starts_at", name: "availability_slots_end_after_start_check"
+  end
 
   create_table "businesses", force: :cascade do |t|
     t.datetime "created_at", null: false
@@ -62,6 +79,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_001913) do
     t.check_constraint "status::text = ANY (ARRAY['active'::character varying, 'archived'::character varying]::text[])", name: "pets_status_check"
     t.check_constraint "vaccination_status::text = ANY (ARRAY['up_to_date'::character varying, 'expired'::character varying, 'unknown'::character varying]::text[])", name: "pets_vaccination_status_check"
     t.check_constraint "weight IS NULL OR weight > 0::numeric", name: "pets_weight_positive_check"
+  end
+
+  create_table "service_offerings", force: :cascade do |t|
+    t.boolean "active", default: true, null: false
+    t.bigint "business_id", null: false
+    t.datetime "created_at", null: false
+    t.text "customer_facing_instructions"
+    t.integer "default_capacity", null: false
+    t.integer "default_duration_minutes"
+    t.text "description"
+    t.string "name", null: false
+    t.string "service_kind", null: false
+    t.datetime "updated_at", null: false
+    t.index ["business_id"], name: "index_service_offerings_on_business_id"
+    t.check_constraint "default_capacity > 0", name: "service_offerings_default_capacity_positive_check"
+    t.check_constraint "default_duration_minutes IS NULL OR default_duration_minutes > 0", name: "service_offerings_duration_positive_check"
+    t.check_constraint "service_kind::text = ANY (ARRAY['daycare'::character varying, 'training'::character varying, 'boarding'::character varying]::text[])", name: "service_offerings_service_kind_check"
   end
 
   create_table "solid_queue_blocked_executions", force: :cascade do |t|
@@ -194,10 +228,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_001913) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "availability_slots", "businesses"
+  add_foreign_key "availability_slots", "service_offerings"
   add_foreign_key "memberships", "businesses"
   add_foreign_key "memberships", "users"
   add_foreign_key "pets", "businesses"
   add_foreign_key "pets", "users"
+  add_foreign_key "service_offerings", "businesses"
   add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade

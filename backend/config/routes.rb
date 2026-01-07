@@ -14,6 +14,9 @@ Rails.application.routes.draw do
           resource :customer_registration, only: :create
           resources :memberships, only: %i[index update destroy]
           resources :pets, only: %i[index show create update]
+          resources :service_offerings, only: %i[index show create update] do
+            resources :availability_slots, only: %i[index show create update]
+          end
         end
       end
     end
