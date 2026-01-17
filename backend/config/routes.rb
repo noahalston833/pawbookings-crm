@@ -16,6 +16,7 @@ Rails.application.routes.draw do
           resources :pets, only: %i[index show create update]
           resources :service_offerings, only: %i[index show create update] do
             resources :availability_slots, only: %i[index show create update]
+            get :availability, on: :member, to: "availabilities#index"
           end
         end
       end
