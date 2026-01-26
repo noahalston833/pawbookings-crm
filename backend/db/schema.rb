@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_003030) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_004209) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -31,6 +31,37 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_003030) do
     t.check_constraint "ends_at > starts_at", name: "availability_slots_end_after_start_check"
   end
 
+  create_table "booking_pets", force: :cascade do |t|
+    t.bigint "booking_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "pet_id", null: false
+    t.datetime "updated_at", null: false
+    t.index ["booking_id", "pet_id"], name: "index_booking_pets_on_booking_id_and_pet_id", unique: true
+    t.index ["booking_id"], name: "index_booking_pets_on_booking_id"
+    t.index ["pet_id"], name: "index_booking_pets_on_pet_id"
+  end
+
+  create_table "bookings", force: :cascade do |t|
+    t.bigint "business_id", null: false
+    t.datetime "created_at", null: false
+    t.bigint "customer_id", null: false
+    t.text "denial_reason"
+    t.integer "lock_version", default: 0, null: false
+    t.text "notes"
+    t.datetime "requested_ends_at", null: false
+    t.datetime "requested_starts_at", null: false
+    t.bigint "service_offering_id", null: false
+    t.string "status", default: "pending", null: false
+    t.datetime "updated_at", null: false
+    t.index ["business_id", "customer_id"], name: "index_bookings_on_business_id_and_customer_id"
+    t.index ["business_id", "status"], name: "index_bookings_on_business_id_and_status"
+    t.index ["business_id"], name: "index_bookings_on_business_id"
+    t.index ["customer_id"], name: "index_bookings_on_customer_id"
+    t.index ["service_offering_id"], name: "index_bookings_on_service_offering_id"
+    t.check_constraint "requested_ends_at > requested_starts_at", name: "bookings_end_after_start_check"
+    t.check_constraint "status::text = ANY (ARRAY['pending'::character varying, 'accepted'::character varying, 'denied'::character varying, 'cancelled'::character varying, 'completed'::character varying]::text[])", name: "bookings_status_check"
+  end
+
   create_table "businesses", force: :cascade do |t|
     t.datetime "created_at", null: false
     t.string "name", null: false
@@ -39,6 +70,23 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_003030) do
     t.string "time_zone", default: "UTC", null: false
     t.datetime "updated_at", null: false
     t.index ["slug"], name: "index_businesses_on_slug", unique: true
+  end
+
+  create_table "idempotency_records", force: :cascade do |t|
+    t.bigint "business_id", null: false
+    t.datetime "completed_at"
+    t.datetime "created_at", null: false
+    t.string "endpoint", null: false
+    t.datetime "expires_at", null: false
+    t.string "key", null: false
+    t.string "request_fingerprint", null: false
+    t.text "response_body"
+    t.integer "response_status"
+    t.datetime "updated_at", null: false
+    t.bigint "user_id", null: false
+    t.index ["business_id", "user_id", "endpoint", "key"], name: "index_idempotency_records_scope", unique: true
+    t.index ["business_id"], name: "index_idempotency_records_on_business_id"
+    t.index ["user_id"], name: "index_idempotency_records_on_user_id"
   end
 
   create_table "memberships", force: :cascade do |t|
@@ -230,6 +278,13 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_003030) do
 
   add_foreign_key "availability_slots", "businesses"
   add_foreign_key "availability_slots", "service_offerings"
+  add_foreign_key "booking_pets", "bookings"
+  add_foreign_key "booking_pets", "pets"
+  add_foreign_key "bookings", "businesses"
+  add_foreign_key "bookings", "service_offerings"
+  add_foreign_key "bookings", "users", column: "customer_id"
+  add_foreign_key "idempotency_records", "businesses"
+  add_foreign_key "idempotency_records", "users"
   add_foreign_key "memberships", "businesses"
   add_foreign_key "memberships", "users"
   add_foreign_key "pets", "businesses"

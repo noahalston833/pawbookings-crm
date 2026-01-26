@@ -6,6 +6,8 @@ class Business < ApplicationRecord
   has_many :pets, dependent: :destroy
   has_many :service_offerings, dependent: :destroy
   has_many :availability_slots, dependent: :destroy
+  has_many :bookings, dependent: :destroy
+  has_many :idempotency_records, dependent: :destroy
 
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true, format: {
