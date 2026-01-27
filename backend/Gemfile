@@ -45,4 +45,10 @@ group :development, :test do
   gem "factory_bot_rails"
   gem "faker"
   gem "shoulda-matchers"
+
+  # Truncation strategy for the handful of specs that exercise real
+  # multi-threaded concurrency (idempotency races, booking-acceptance
+  # races), where the default per-example transaction would hide
+  # committed data from other threads.
+  gem "database_cleaner-active_record"
 end

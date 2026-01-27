@@ -48,10 +48,25 @@ RSpec.configure do |config|
   # login attempts) would otherwise leak into the next.
   config.before { Rails.cache.clear }
 
+  # Specs tagged :concurrency spawn real threads with their own DB
+  # connections to exercise actual races (idempotency, booking
+  # acceptance). Those threads need to see each other's committed rows,
+  # which the default per-example transaction (rolled back, never
+  # committed) would hide -- so those specs use real commits + truncation
+  # cleanup instead.
+  config.before(:suite) { DatabaseCleaner.clean_with(:truncation) }
+
+  config.before do |example|
+    DatabaseCleaner.strategy = example.metadata[:concurrency] ? :truncation : :transaction
+    DatabaseCleaner.start
+  end
+
+  config.append_after { DatabaseCleaner.clean }
+
   # If you're not using ActiveRecord, or you'd prefer not to run each of your
   # examples within a transaction, remove the following line or assign false
   # instead of true.
-  config.use_transactional_fixtures = true
+  config.use_transactional_fixtures = false
 
   # You can uncomment this line to turn off ActiveRecord support entirely.
   # config.use_active_record = false
