@@ -18,6 +18,7 @@ Rails.application.routes.draw do
             resources :availability_slots, only: %i[index show create update]
             get :availability, on: :member, to: "availabilities#index"
           end
+          resources :bookings, only: %i[index show create]
         end
       end
     end

@@ -15,8 +15,10 @@ module ErrorHandling
 
   private
 
-  def render_error(status:, code:, message:, details: {})
-    render status: status, json: {
+  # Shared with IdempotentOperation so a replayed error response (e.g. a
+  # cached 422) has the exact same shape as one rendered fresh.
+  def error_payload(code:, message:, details: {})
+    {
       error: {
         code: code,
         message: message,
@@ -24,6 +26,10 @@ module ErrorHandling
         request_id: request.request_id
       }
     }
+  end
+
+  def render_error(status:, code:, message:, details: {})
+    render status: status, json: error_payload(code: code, message: message, details: details)
   end
 
   def render_not_found(_exception = nil)
