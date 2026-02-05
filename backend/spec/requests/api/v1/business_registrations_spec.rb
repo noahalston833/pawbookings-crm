@@ -14,17 +14,19 @@ RSpec.describe "Api::V1::BusinessRegistrations", type: :request do
   end
 
   describe "POST /api/v1/business_registrations" do
-    it "creates a business, an owner user, and an owner membership together" do
+    it "creates a business, an owner user, an owner membership, and default services" do
       expect {
         post "/api/v1/business_registrations", params: valid_params
       }.to change(Business, :count).by(1)
         .and change(User, :count).by(1)
         .and change(Membership, :count).by(1)
+        .and change(ServiceOffering, :count).by(3)
 
       expect(response).to have_http_status(:created)
 
       business = Business.find_by(slug: "paws-and-play")
       expect(business.memberships.first).to be_owner
+      expect(business.service_offerings.pluck(:service_kind)).to contain_exactly("daycare", "training", "boarding")
     end
 
     it "logs the new owner in immediately" do
@@ -50,7 +52,7 @@ RSpec.describe "Api::V1::BusinessRegistrations", type: :request do
 
       expect {
         post "/api/v1/business_registrations", params: valid_params
-      }.not_to change(User, :count)
+      }.to change(User, :count).by(0).and change(ServiceOffering, :count).by(0)
 
       expect(response).to have_http_status(:unprocessable_content)
     end
