@@ -4,6 +4,8 @@ class Booking < ApplicationRecord
   belongs_to :service_offering
   has_many :booking_pets, dependent: :destroy
   has_many :pets, through: :booking_pets
+  has_many :booking_allocations, dependent: :destroy
+  has_many :availability_slots, through: :booking_allocations
 
   enum :status, { pending: "pending", accepted: "accepted", denied: "denied", cancelled: "cancelled", completed: "completed" },
        validate: true, default: :pending

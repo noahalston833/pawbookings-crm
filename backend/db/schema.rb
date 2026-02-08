@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_004209) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_010057) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -29,6 +29,16 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_004209) do
     t.index ["service_offering_id"], name: "index_availability_slots_on_service_offering_id"
     t.check_constraint "capacity > 0", name: "availability_slots_capacity_positive_check"
     t.check_constraint "ends_at > starts_at", name: "availability_slots_end_after_start_check"
+  end
+
+  create_table "booking_allocations", force: :cascade do |t|
+    t.bigint "availability_slot_id", null: false
+    t.bigint "booking_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["availability_slot_id"], name: "index_booking_allocations_on_availability_slot_id"
+    t.index ["booking_id", "availability_slot_id"], name: "idx_on_booking_id_availability_slot_id_3c77a0232b", unique: true
+    t.index ["booking_id"], name: "index_booking_allocations_on_booking_id"
   end
 
   create_table "booking_pets", force: :cascade do |t|
@@ -278,6 +288,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_004209) do
 
   add_foreign_key "availability_slots", "businesses"
   add_foreign_key "availability_slots", "service_offerings"
+  add_foreign_key "booking_allocations", "availability_slots"
+  add_foreign_key "booking_allocations", "bookings"
   add_foreign_key "booking_pets", "bookings"
   add_foreign_key "booking_pets", "pets"
   add_foreign_key "bookings", "businesses"

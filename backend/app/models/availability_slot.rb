@@ -1,6 +1,7 @@
 class AvailabilitySlot < ApplicationRecord
   belongs_to :business
   belongs_to :service_offering
+  has_many :booking_allocations, dependent: :restrict_with_error
 
   validates :capacity, numericality: { only_integer: true, greater_than: 0 }
   validate :ends_at_after_starts_at
