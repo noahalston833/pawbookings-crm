@@ -11,6 +11,9 @@ module ErrorHandling
     rescue_from ActionController::ParameterMissing, with: :render_bad_request
     rescue_from ActionController::InvalidAuthenticityToken, with: :render_invalid_csrf_token
     rescue_from Pundit::NotAuthorizedError, with: :render_forbidden
+    rescue_from IdempotentOperation::MissingKey, with: :render_missing_idempotency_key
+    rescue_from IdempotentOperation::PayloadMismatch, with: :render_idempotency_conflict
+    rescue_from IdempotentOperation::ProcessingConflict, with: :render_processing_conflict
   end
 
   private
@@ -66,6 +69,30 @@ module ErrorHandling
       status: :forbidden,
       code: "forbidden",
       message: "You do not have permission to do that."
+    )
+  end
+
+  def render_missing_idempotency_key(_exception)
+    render_error(
+      status: :bad_request,
+      code: "missing_idempotency_key",
+      message: "An Idempotency-Key header is required for this request."
+    )
+  end
+
+  def render_idempotency_conflict(_exception)
+    render_error(
+      status: :conflict,
+      code: "idempotency_key_conflict",
+      message: "This Idempotency-Key was already used with a different request."
+    )
+  end
+
+  def render_processing_conflict(_exception)
+    render_error(
+      status: :conflict,
+      code: "request_in_progress",
+      message: "This request is already being processed. Please retry shortly."
     )
   end
 

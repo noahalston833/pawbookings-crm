@@ -5,6 +5,11 @@ class BookingPolicy < ApplicationPolicy
   def index? = membership.present?
   def show? = staff_or_above? || owns_record?
   def create? = customer?
+  def accept? = owner_or_admin?
+  def deny? = owner_or_admin?
+  # Owner/admin can cancel on the customer's behalf (e.g. a weather
+  # closure); staff cannot -- booking decisions stay owner/admin only.
+  def cancel? = owner_or_admin? || owns_record?
 
   private
 

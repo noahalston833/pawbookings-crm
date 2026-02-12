@@ -3,13 +3,9 @@ module Api
     module Businesses
       # Customer-facing "what can I actually book" view, distinct from
       # AvailabilitySlotsController's plain CRUD: date-ranged, active +
-      # future only, and includes a computed remaining_capacity.
-      #
-      # remaining_capacity currently just equals capacity -- Booking and
-      # BookingAllocation don't exist yet (see docs/decisions/0005 and the
-      # commit history). This gets extended to subtract accepted bookings'
-      # allocations once those models exist, without changing this
-      # endpoint's shape.
+      # future only, and includes a computed remaining_capacity (capacity
+      # minus accepted bookings' allocations -- pending requests reserve
+      # nothing, see docs/decisions/0005).
       class AvailabilitiesController < Api::V1::TenantScopedController
         DEFAULT_RANGE_DAYS = 14
         MAX_RANGE_DAYS = 60
@@ -25,14 +21,29 @@ module Api
                            .where(starts_at: range_start.beginning_of_day..range_end.end_of_day)
                            .order(:starts_at)
                            .limit(200)
+                           .to_a
+
+          accepted_counts = accepted_allocation_counts(slots)
 
           render json: {
             time_zone: Current.business.time_zone,
-            slots: slots.map { |slot| availability_json(slot) }
+            slots: slots.map { |slot| availability_json(slot, accepted_counts[slot.id] || 0) }
           }
         end
 
         private
+
+        # One aggregate query covering every slot on the page, not one
+        # query per slot -- avoids N+1 as the date range/slot count grows.
+        def accepted_allocation_counts(slots)
+          return {} if slots.empty?
+
+          BookingAllocation.joins(:booking)
+                            .where(availability_slot_id: slots.map(&:id))
+                            .merge(Booking.where(status: "accepted"))
+                            .group(:availability_slot_id)
+                            .count
+        end
 
         def date_range
           range_start = parse_date(params[:from]) || Time.zone.today
@@ -49,13 +60,13 @@ module Api
           nil
         end
 
-        def availability_json(slot)
+        def availability_json(slot, accepted_count)
           {
             id: slot.id,
             starts_at: slot.starts_at,
             ends_at: slot.ends_at,
             capacity: slot.capacity,
-            remaining_capacity: slot.capacity
+            remaining_capacity: [ slot.capacity - accepted_count, 0 ].max
           }
         end
       end

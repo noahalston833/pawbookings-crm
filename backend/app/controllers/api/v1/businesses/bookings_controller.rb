@@ -20,36 +20,48 @@ module Api
         def create
           authorize Booking, :create?
 
-          outcome = IdempotentOperation.new(
-            business: Current.business,
-            user: current_user,
-            endpoint: "bookings#create",
-            key: request.headers["Idempotency-Key"],
-            payload: booking_params.to_h
-          ).call { process_booking_request }
-
+          outcome = idempotent("bookings#create", booking_params.to_h) { process_booking_request }
           render json: outcome.body, status: outcome.status
-        rescue IdempotentOperation::MissingKey
-          render_error(
-            status: :bad_request,
-            code: "missing_idempotency_key",
-            message: "An Idempotency-Key header is required for this request."
-          )
-        rescue IdempotentOperation::PayloadMismatch
-          render_error(
-            status: :conflict,
-            code: "idempotency_key_conflict",
-            message: "This Idempotency-Key was already used with a different request."
-          )
-        rescue IdempotentOperation::ProcessingConflict
-          render_error(
-            status: :conflict,
-            code: "request_in_progress",
-            message: "This request is already being processed. Please retry shortly."
-          )
+        end
+
+        def accept
+          booking = Current.business.bookings.find(params[:id])
+          authorize booking
+
+          outcome = idempotent("bookings#accept", { booking_id: booking.id }) {
+            process_decision(BookingAcceptance.new(booking: booking).call)
+          }
+          render json: outcome.body, status: outcome.status
+        end
+
+        def deny
+          booking = Current.business.bookings.find(params[:id])
+          authorize booking
+
+          outcome = idempotent("bookings#deny", { booking_id: booking.id, reason: deny_params[:reason] }) {
+            process_decision(BookingDenial.new(booking: booking, reason: deny_params[:reason]).call)
+          }
+          render json: outcome.body, status: outcome.status
+        end
+
+        def cancel
+          booking = Current.business.bookings.find(params[:id])
+          authorize booking
+
+          outcome = idempotent("bookings#cancel", { booking_id: booking.id }) {
+            process_decision(BookingCancellation.new(booking: booking).call)
+          }
+          render json: outcome.body, status: outcome.status
         end
 
         private
+
+        def idempotent(endpoint, payload)
+          IdempotentOperation.new(
+            business: Current.business, user: current_user, endpoint: endpoint,
+            key: request.headers["Idempotency-Key"], payload: payload
+          ).call { yield }
+        end
 
         def process_booking_request
           result = BookingRequestService.new(
@@ -65,21 +77,37 @@ module Api
           if result.success?
             IdempotentOperation::Outcome.new(status: 201, body: booking_json(result.booking))
           else
-            IdempotentOperation::Outcome.new(
-              status: 422,
-              body: error_payload(
-                code: "validation_failed",
-                message: "The request could not be processed.",
-                details: result.errors.to_hash
-              )
-            )
+            validation_failed_outcome(result.errors.to_hash)
           end
+        end
+
+        # Shared response shaping for the three decision services -- each
+        # returns the same success?/booking/error_code/error_message shape.
+        def process_decision(result)
+          return IdempotentOperation::Outcome.new(status: 200, body: booking_json(result.booking)) if result.success?
+
+          status = result.error_code == "availability_conflict" ? 409 : 422
+          IdempotentOperation::Outcome.new(
+            status: status,
+            body: error_payload(code: result.error_code, message: result.error_message)
+          )
+        end
+
+        def validation_failed_outcome(details)
+          IdempotentOperation::Outcome.new(
+            status: 422,
+            body: error_payload(code: "validation_failed", message: "The request could not be processed.", details: details)
+          )
         end
 
         def booking_params
           params.require(:booking).permit(
             :service_offering_id, :requested_starts_at, :requested_ends_at, :notes, pet_ids: []
           )
+        end
+
+        def deny_params
+          params.fetch(:booking, {}).permit(:reason)
         end
 
         def booking_json(booking)
