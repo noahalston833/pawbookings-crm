@@ -29,6 +29,21 @@ RSpec.describe "Api::V1::Businesses::Availabilities", type: :request do
     expect(body["slots"].first).to include("id" => slot.id, "capacity" => 7, "remaining_capacity" => 7)
   end
 
+  it "subtracts accepted bookings' allocations from remaining capacity, but not pending ones" do
+    slot = create(:availability_slot, service_offering: offering, business: business,
+                                       starts_at: 1.day.from_now, ends_at: 2.days.from_now, capacity: 2)
+    accepted = create(:booking, :accepted, service_offering: offering, business: business,
+                                            requested_starts_at: slot.starts_at, requested_ends_at: slot.ends_at)
+    create(:booking_allocation, booking: accepted, availability_slot: slot)
+    create(:booking, service_offering: offering, business: business,
+                      requested_starts_at: slot.starts_at, requested_ends_at: slot.ends_at) # pending, no allocation
+    login_as(customer)
+
+    get availability_path(offering)
+
+    expect(response.parsed_body["slots"].first["remaining_capacity"]).to eq(1)
+  end
+
   it "excludes inactive slots" do
     create(:availability_slot, service_offering: offering, business: business, active: false,
                                 starts_at: 1.day.from_now, ends_at: 2.days.from_now)
