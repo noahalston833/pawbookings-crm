@@ -10,9 +10,24 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_010057) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_011101) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
+
+  create_table "audit_events", force: :cascade do |t|
+    t.string "action", null: false
+    t.bigint "actor_id", null: false
+    t.bigint "business_id", null: false
+    t.datetime "created_at", null: false
+    t.json "metadata", default: {}, null: false
+    t.bigint "target_id"
+    t.string "target_type"
+    t.datetime "updated_at", null: false
+    t.index ["actor_id"], name: "index_audit_events_on_actor_id"
+    t.index ["business_id", "created_at"], name: "index_audit_events_on_business_id_and_created_at"
+    t.index ["business_id"], name: "index_audit_events_on_business_id"
+    t.index ["target_type", "target_id"], name: "index_audit_events_on_target"
+  end
 
   create_table "availability_slots", force: :cascade do |t|
     t.boolean "active", default: true, null: false
@@ -58,6 +73,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_010057) do
     t.text "denial_reason"
     t.integer "lock_version", default: 0, null: false
     t.text "notes"
+    t.datetime "notified_at"
     t.datetime "requested_ends_at", null: false
     t.datetime "requested_starts_at", null: false
     t.bigint "service_offering_id", null: false
@@ -286,6 +302,8 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_010057) do
     t.index ["email"], name: "index_users_on_email", unique: true
   end
 
+  add_foreign_key "audit_events", "businesses"
+  add_foreign_key "audit_events", "users", column: "actor_id"
   add_foreign_key "availability_slots", "businesses"
   add_foreign_key "availability_slots", "service_offerings"
   add_foreign_key "booking_allocations", "availability_slots"

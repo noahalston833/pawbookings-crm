@@ -8,6 +8,7 @@ class Business < ApplicationRecord
   has_many :availability_slots, dependent: :destroy
   has_many :bookings, dependent: :destroy
   has_many :idempotency_records, dependent: :destroy
+  has_many :audit_events, dependent: :destroy
 
   validates :name, presence: true
   validates :slug, presence: true, uniqueness: true, format: {
