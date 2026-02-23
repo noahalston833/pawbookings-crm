@@ -5,16 +5,23 @@ module Api
         def index
           authorize Membership, :index?
 
-          memberships = Current.business.memberships.includes(:user).order(:id)
+          memberships = paginate(Current.business.memberships.includes(:user).order(:id))
           render json: memberships.map { |membership| membership_json(membership) }
         end
 
         def update
           membership = Current.business.memberships.find(params[:id])
+          previous_role = membership.role
           membership.assign_attributes(membership_params)
           authorize membership
 
           if membership.save
+            if membership.role != previous_role
+              AuditEvent.record!(
+                business: Current.business, actor: current_user, action: "membership.role_changed",
+                target: membership, metadata: { from: previous_role, to: membership.role, user_id: membership.user_id }
+              )
+            end
             render json: membership_json(membership)
           else
             render_error(

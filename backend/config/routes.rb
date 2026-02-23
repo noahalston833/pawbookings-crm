@@ -23,6 +23,8 @@ Rails.application.routes.draw do
             post :deny, on: :member
             post :cancel, on: :member
           end
+          resources :audit_events, only: :index
+          resource :business_settings, only: %i[show update]
         end
       end
     end
