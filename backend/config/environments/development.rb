@@ -38,6 +38,10 @@ Rails.application.configure do
   # Set localhost to be used by links generated in mailer templates.
   config.action_mailer.default_url_options = { host: "localhost", port: 3000 }
 
+  # Writes emails to tmp/mails as files instead of requiring a real SMTP
+  # server for local development (Rails 7.1+ built-in delivery method).
+  config.action_mailer.delivery_method = :file
+
   # Print deprecation notices to the Rails logger.
   config.active_support.deprecation = :log
 

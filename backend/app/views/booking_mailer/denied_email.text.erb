@@ -1,0 +1,9 @@
+Hi,
+
+Unfortunately your booking request for <%= @booking.service_offering.name %> at <%= @booking.business.name %> could not be accepted.
+
+<% if @booking.denial_reason.present? %>
+Reason: <%= @booking.denial_reason %>
+<% end %>
+
+Please contact <%= @booking.business.name %> if you have questions.

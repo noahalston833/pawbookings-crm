@@ -1,0 +1,8 @@
+Hi,
+
+Good news -- your booking request for <%= @booking.service_offering.name %> at <%= @booking.business.name %> has been accepted.
+
+Requested: <%= @booking.requested_starts_at %> to <%= @booking.requested_ends_at %>
+
+Thanks,
+<%= @booking.business.name %>

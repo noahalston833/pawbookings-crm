@@ -5,9 +5,11 @@ module Api
         def index
           authorize Booking, :index?
 
-          bookings = policy_scope(Current.business.bookings)
-                     .includes(:service_offering, :customer, :pets)
-                     .order(created_at: :desc)
+          bookings = paginate(
+            policy_scope(Current.business.bookings)
+              .includes(:service_offering, :customer, :pets)
+              .order(created_at: :desc)
+          )
           render json: bookings.map { |booking| booking_json(booking) }
         end
 
@@ -29,7 +31,8 @@ module Api
           authorize booking
 
           outcome = idempotent("bookings#accept", { booking_id: booking.id }) {
-            process_decision(BookingAcceptance.new(booking: booking).call)
+            result = BookingAcceptance.new(booking: booking).call
+            on_booking_decided(result, action: "booking.accepted", job: BookingAcceptedNotificationJob)
           }
           render json: outcome.body, status: outcome.status
         end
@@ -39,7 +42,9 @@ module Api
           authorize booking
 
           outcome = idempotent("bookings#deny", { booking_id: booking.id, reason: deny_params[:reason] }) {
-            process_decision(BookingDenial.new(booking: booking, reason: deny_params[:reason]).call)
+            result = BookingDenial.new(booking: booking, reason: deny_params[:reason]).call
+            on_booking_decided(result, action: "booking.denied", job: BookingDeniedNotificationJob,
+                                       metadata: { reason: deny_params[:reason] })
           }
           render json: outcome.body, status: outcome.status
         end
@@ -91,6 +96,18 @@ module Api
             status: status,
             body: error_payload(code: result.error_code, message: result.error_message)
           )
+        end
+
+        # Accept/deny additionally audit-log the decision and enqueue a
+        # notification -- only on genuine success, never on a replayed
+        # idempotent outcome (this block only runs once per real decision).
+        def on_booking_decided(result, action:, job:, metadata: {})
+          if result.success?
+            AuditEvent.record!(business: Current.business, actor: current_user, action: action,
+                                target: result.booking, metadata: metadata)
+            job.perform_later(business_id: Current.business.id, booking_id: result.booking.id)
+          end
+          process_decision(result)
         end
 
         def validation_failed_outcome(details)
