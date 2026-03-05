@@ -3,7 +3,9 @@ module Api
     module Businesses
       class PetsController < Api::V1::TenantScopedController
         def index
-          pets = policy_scope(Current.business.pets).includes(:user).order(:id)
+          authorize Pet, :index?
+
+          pets = paginate(policy_scope(Current.business.pets).includes(:user).order(:id))
           render json: pets.map { |pet| pet_json(pet) }
         end
 

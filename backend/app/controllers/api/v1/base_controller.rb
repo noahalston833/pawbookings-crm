@@ -4,6 +4,7 @@ module Api
     # controllers get their own base (Api::V1::TenantScopedController, added
     # with tenant resolution) that inherits from this one.
     class BaseController < ApplicationController
+      include Paginatable
     end
   end
 end
