@@ -72,6 +72,10 @@ RSpec.describe "Api::V1::Businesses::Memberships", type: :request do
 
       expect(response).to have_http_status(:ok)
       expect(staff_membership.reload.role).to eq("admin")
+
+      event = AuditEvent.last
+      expect(event.action).to eq("membership.role_changed")
+      expect(event.metadata).to include("from" => "staff", "to" => "admin")
     end
 
     it "lets an admin change a customer's role to staff" do

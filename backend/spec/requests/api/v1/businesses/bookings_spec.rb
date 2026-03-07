@@ -146,6 +146,21 @@ RSpec.describe "Api::V1::Businesses::Bookings", type: :request do
       expect(booking.reload.booking_allocations.count).to eq(1)
     end
 
+    it "records an audit event and enqueues a notification job" do
+      booking = create_pending_booking
+      login_as(owner)
+
+      expect {
+        post "/api/v1/businesses/paws-and-play/bookings/#{booking.id}/accept",
+             headers: { "Idempotency-Key" => "accept-audit" }
+      }.to have_enqueued_job(BookingAcceptedNotificationJob).with(business_id: business.id, booking_id: booking.id)
+
+      event = AuditEvent.last
+      expect(event.action).to eq("booking.accepted")
+      expect(event.actor).to eq(owner)
+      expect(event.target).to eq(booking)
+    end
+
     it "returns a 409 availability conflict when capacity is gone" do
       first_booking = create_pending_booking
       login_as(owner)
