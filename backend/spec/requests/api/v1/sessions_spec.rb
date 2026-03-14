@@ -3,6 +3,23 @@ require "rails_helper"
 RSpec.describe "Api::V1::Sessions", type: :request do
   let!(:user) { create(:user, email: "customer@example.com", password: "password123") }
 
+  describe "GET /api/v1/session" do
+    it "returns the current user when logged in" do
+      post "/api/v1/session", params: { session: { email: "customer@example.com", password: "password123" } }
+
+      get "/api/v1/session"
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body["user"]).to include("id" => user.id)
+    end
+
+    it "returns 401 when not logged in" do
+      get "/api/v1/session"
+
+      expect(response).to have_http_status(:unauthorized)
+    end
+  end
+
   describe "POST /api/v1/session" do
     it "logs in with correct credentials and returns the user" do
       post "/api/v1/session", params: { session: { email: "customer@example.com", password: "password123" } }

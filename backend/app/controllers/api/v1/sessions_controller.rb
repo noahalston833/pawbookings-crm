@@ -6,6 +6,14 @@ module Api
 
       before_action :enforce_login_rate_limit, only: :create
 
+      # Lets the SPA restore auth state on page load/refresh without
+      # storing anything itself -- the cookie is the source of truth.
+      def show
+        return render_error(status: :unauthorized, code: "authentication_required", message: "Not logged in.") unless current_user
+
+        render json: { user: user_json(current_user) }
+      end
+
       def create
         user = User.find_by(email: session_params[:email])
 

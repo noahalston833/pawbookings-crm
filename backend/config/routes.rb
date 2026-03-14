@@ -6,7 +6,7 @@ Rails.application.routes.draw do
   namespace :api do
     namespace :v1 do
       resource :csrf_token, only: :show, controller: "csrf_tokens"
-      resource :session, only: %i[create destroy]
+      resource :session, only: %i[show create destroy]
       resources :business_registrations, only: :create
 
       resources :businesses, only: [], param: :slug do
