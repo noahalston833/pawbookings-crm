@@ -4,13 +4,19 @@ RSpec.describe "Api::V1::Sessions", type: :request do
   let!(:user) { create(:user, email: "customer@example.com", password: "password123") }
 
   describe "GET /api/v1/session" do
-    it "returns the current user when logged in" do
+    it "returns the current user with their memberships when logged in" do
+      business = create(:business, slug: "paws-and-play")
+      create(:membership, :owner, business: business, user: user)
       post "/api/v1/session", params: { session: { email: "customer@example.com", password: "password123" } }
 
       get "/api/v1/session"
 
       expect(response).to have_http_status(:ok)
-      expect(response.parsed_body["user"]).to include("id" => user.id)
+      body = response.parsed_body["user"]
+      expect(body).to include("id" => user.id)
+      expect(body["memberships"]).to contain_exactly(
+        { "business_slug" => "paws-and-play", "business_name" => business.name, "role" => "owner" }
+      )
     end
 
     it "returns 401 when not logged in" do

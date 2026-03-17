@@ -44,7 +44,13 @@ module Api
       end
 
       def user_json(user)
-        { id: user.id, email: user.email }
+        {
+          id: user.id,
+          email: user.email,
+          memberships: user.memberships.includes(:business).map do |membership|
+            { business_slug: membership.business.slug, business_name: membership.business.name, role: membership.role }
+          end
+        }
       end
 
       # A fixed per-IP counter in Rails.cache, not a gem/database table --
