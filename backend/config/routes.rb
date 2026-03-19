@@ -9,7 +9,7 @@ Rails.application.routes.draw do
       resource :session, only: %i[show create destroy]
       resources :business_registrations, only: :create
 
-      resources :businesses, only: [], param: :slug do
+      resources :businesses, only: :show, param: :slug do
         scope module: :businesses do
           resource :customer_registration, only: :create
           resources :memberships, only: %i[index update destroy]
