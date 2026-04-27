@@ -46,3 +46,39 @@ export function useCancelBooking(businessSlug) {
     },
   })
 }
+
+export function useAcceptBooking(businessSlug) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ bookingId, idempotencyKey }) => {
+      const { data } = await client.post(
+        `/businesses/${businessSlug}/bookings/${bookingId}/accept`,
+        {},
+        { headers: { 'Idempotency-Key': idempotencyKey } }
+      )
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ 'bookings', businessSlug ] })
+    },
+  })
+}
+
+export function useDenyBooking(businessSlug) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ bookingId, reason, idempotencyKey }) => {
+      const { data } = await client.post(
+        `/businesses/${businessSlug}/bookings/${bookingId}/deny`,
+        { booking: { reason } },
+        { headers: { 'Idempotency-Key': idempotencyKey } }
+      )
+      return data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: [ 'bookings', businessSlug ] })
+    },
+  })
+}
