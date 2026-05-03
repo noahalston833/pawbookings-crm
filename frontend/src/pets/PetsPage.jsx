@@ -1,8 +1,12 @@
 import { Link, useParams } from 'react-router-dom'
 import { usePets, useArchivePet } from './usePets'
+import { useCurrentMembership } from '../auth/useCurrentMembership'
 
 export function PetsPage() {
   const { businessSlug } = useParams()
+  const membership = useCurrentMembership()
+  const isStaffOrAbove = Boolean(membership && [ 'owner', 'admin', 'staff' ].includes(membership.role))
+  const canArchive = Boolean(membership && membership.role !== 'staff')
   const { data: pets, isLoading, isError } = usePets(businessSlug)
   const archivePet = useArchivePet(businessSlug)
 
@@ -12,23 +16,26 @@ export function PetsPage() {
     }
   }
 
-  if (isLoading) return <p>Loading your pets…</p>
-  if (isError) return <p role="alert">Something went wrong loading your pets. Please try again.</p>
+  if (isLoading) return <p>Loading pets…</p>
+  if (isError) return <p role="alert">Something went wrong loading pets. Please try again.</p>
 
   return (
     <section>
-      <h2>My pets</h2>
-      <p>
-        <Link to={`/${businessSlug}/pets/new`}>Add a pet</Link>
-      </p>
+      <h2>{isStaffOrAbove ? 'Pet directory' : 'My pets'}</h2>
+      {!isStaffOrAbove && (
+        <p>
+          <Link to={`/${businessSlug}/pets/new`}>Add a pet</Link>
+        </p>
+      )}
       {pets.length === 0 ? (
-        <p>You haven&apos;t added any pets yet.</p>
+        <p>{isStaffOrAbove ? 'No pets have been registered yet.' : 'You haven\u2019t added any pets yet.'}</p>
       ) : (
         <ul>
           {pets.map((pet) => (
             <li key={pet.id}>
               {pet.name} ({pet.breed || pet.species}) — {pet.status}
-              {pet.status === 'active' && (
+              {isStaffOrAbove && <> — owner: {pet.owner.email}</>}
+              {pet.status === 'active' && canArchive && (
                 <button type="button" onClick={() => handleArchive(pet)}>Archive</button>
               )}
             </li>
