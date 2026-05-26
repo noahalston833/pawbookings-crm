@@ -83,4 +83,12 @@ Rails.application.configure do
   # hook the way ActionController::Base does, so it's set explicitly here and
   # synced onto ApplicationController (see application_controller.rb).
   config.action_controller.allow_forgery_protection = true
+
+  # Logs (not raises) N+1 queries and unused eager-loading during manual
+  # local testing -- test.rb is stricter and fails the suite outright.
+  config.after_initialize do
+    Bullet.enable = true
+    Bullet.bullet_logger = true
+    Bullet.rails_logger = true
+  end
 end

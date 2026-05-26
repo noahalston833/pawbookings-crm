@@ -56,4 +56,12 @@ Rails.application.configure do
   # Jobs are asserted on via have_enqueued_job/perform_enqueued_jobs rather
   # than actually running on a real queue during the test suite.
   config.active_job.queue_adapter = :test
+
+  # Fails the suite on an N+1 query or unused eager-loading, rather than
+  # only surfacing as a slow request later.
+  config.after_initialize do
+    Bullet.enable = true
+    Bullet.bullet_logger = true
+    Bullet.raise = true
+  end
 end

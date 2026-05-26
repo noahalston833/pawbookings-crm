@@ -46,6 +46,11 @@ group :development, :test do
   gem "faker"
   gem "shoulda-matchers"
 
+  # Detects N+1 queries and unused eager loading; raises in test so a
+  # regression fails the suite instead of only showing up as a slow
+  # request in production.
+  gem "bullet"
+
   # Truncation strategy for the handful of specs that exercise real
   # multi-threaded concurrency (idempotency races, booking-acceptance
   # races), where the default per-example transaction would hide
