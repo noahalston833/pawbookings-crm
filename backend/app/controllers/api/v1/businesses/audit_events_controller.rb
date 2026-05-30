@@ -5,8 +5,11 @@ module Api
         def index
           authorize AuditEvent, :index?
 
+          # event_json only reads target_type/target_id (plain columns on
+          # audit_events itself), never the polymorphic :target association
+          # -- eager loading it would be pure waste (and Bullet agrees).
           events = paginate(
-            Current.business.audit_events.includes(:actor, :target).order(created_at: :desc)
+            Current.business.audit_events.includes(:actor).order(created_at: :desc)
           )
           render json: events.map { |event| event_json(event) }
         end
