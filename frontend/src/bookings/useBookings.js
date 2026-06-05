@@ -1,13 +1,26 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { client } from '../api/client'
 
-export function useBookings(businessSlug) {
-  return useQuery({
-    queryKey: [ 'bookings', businessSlug ],
-    queryFn: async () => {
-      const { data } = await client.get(`/businesses/${businessSlug}/bookings`)
+const PER_PAGE = 25
+
+// Filtering happens server-side (?status=) rather than fetching every
+// booking and filtering in the browser -- a business accumulates bookings
+// indefinitely, so "just fetch everything" doesn't stay correct or fast.
+export function useBookings(businessSlug, status) {
+  return useInfiniteQuery({
+    queryKey: [ 'bookings', businessSlug, status ],
+    queryFn: async ({ pageParam }) => {
+      const { data } = await client.get(`/businesses/${businessSlug}/bookings`, {
+        params: {
+          page: pageParam,
+          per_page: PER_PAGE,
+          ...(status && status !== 'all' ? { status } : {}),
+        },
+      })
       return data
     },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage, allPages) => (lastPage.length === PER_PAGE ? allPages.length + 1 : undefined),
   })
 }
 

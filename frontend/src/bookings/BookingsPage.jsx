@@ -20,7 +20,9 @@ export function BookingsPage() {
 
   const [ statusFilter, setStatusFilter ] = useState(isStaffOrAbove ? 'pending' : 'all')
 
-  const { data: bookings, isLoading, isError } = useBookings(businessSlug)
+  const {
+    data, isLoading, isError, fetchNextPage, hasNextPage, isFetchingNextPage,
+  } = useBookings(businessSlug, statusFilter)
   const cancelBooking = useCancelBooking(businessSlug)
   const acceptBooking = useAcceptBooking(businessSlug)
   const denyBooking = useDenyBooking(businessSlug)
@@ -49,9 +51,7 @@ export function BookingsPage() {
     .map((error) => error && getApiError(error))
     .find(Boolean)
 
-  const visibleBookings = statusFilter === 'all'
-    ? bookings
-    : bookings.filter((booking) => booking.status === statusFilter)
+  const visibleBookings = data.pages.flat()
 
   return (
     <section>
@@ -113,6 +113,12 @@ export function BookingsPage() {
             </li>
           ))}
         </ul>
+      )}
+
+      {hasNextPage && (
+        <button type="button" onClick={() => fetchNextPage()} disabled={isFetchingNextPage}>
+          {isFetchingNextPage ? 'Loading…' : 'Load more'}
+        </button>
       )}
     </section>
   )

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.1].define(version: 2026_08_18_011101) do
+ActiveRecord::Schema[8.1].define(version: 2026_08_18_023735) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -39,6 +39,7 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_011101) do
     t.datetime "starts_at", null: false
     t.datetime "updated_at", null: false
     t.index ["business_id"], name: "index_availability_slots_on_business_id"
+    t.index ["service_offering_id", "active", "starts_at"], name: "index_availability_slots_on_offering_active_and_starts_at"
     t.index ["service_offering_id", "starts_at", "ends_at"], name: "index_availability_slots_on_offering_and_window", unique: true
     t.index ["service_offering_id", "starts_at"], name: "index_availability_slots_on_service_offering_id_and_starts_at"
     t.index ["service_offering_id"], name: "index_availability_slots_on_service_offering_id"
@@ -79,8 +80,9 @@ ActiveRecord::Schema[8.1].define(version: 2026_08_18_011101) do
     t.bigint "service_offering_id", null: false
     t.string "status", default: "pending", null: false
     t.datetime "updated_at", null: false
+    t.index ["business_id", "created_at"], name: "index_bookings_on_business_id_and_created_at"
     t.index ["business_id", "customer_id"], name: "index_bookings_on_business_id_and_customer_id"
-    t.index ["business_id", "status"], name: "index_bookings_on_business_id_and_status"
+    t.index ["business_id", "status", "created_at"], name: "index_bookings_on_business_id_status_and_created_at"
     t.index ["business_id"], name: "index_bookings_on_business_id"
     t.index ["customer_id"], name: "index_bookings_on_customer_id"
     t.index ["service_offering_id"], name: "index_bookings_on_service_offering_id"

@@ -117,6 +117,27 @@ RSpec.describe "Api::V1::Businesses::Bookings", type: :request do
       get "/api/v1/businesses/paws-and-play/bookings"
       expect(response.parsed_body).to be_empty
     end
+
+    it "filters by status when a recognized status param is given" do
+      create(:booking, :accepted, service_offering: offering, customer: customer)
+      create(:booking, service_offering: offering, customer: customer)
+
+      login_as(staff)
+      get "/api/v1/businesses/paws-and-play/bookings", params: { status: "accepted" }
+
+      expect(response.parsed_body.size).to eq(1)
+      expect(response.parsed_body.first["status"]).to eq("accepted")
+    end
+
+    it "ignores an unrecognized status param rather than raising" do
+      create(:booking, service_offering: offering, customer: customer)
+
+      login_as(staff)
+      get "/api/v1/businesses/paws-and-play/bookings", params: { status: "not-a-real-status" }
+
+      expect(response).to have_http_status(:ok)
+      expect(response.parsed_body.size).to eq(1)
+    end
   end
 
   describe "POST .../bookings/:id/accept" do

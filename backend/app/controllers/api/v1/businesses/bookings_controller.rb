@@ -7,6 +7,7 @@ module Api
 
           bookings = paginate(
             policy_scope(Current.business.bookings)
+              .then { |scope| filter_by_status(scope) }
               .includes(:service_offering, :customer, :pets)
               .order(created_at: :desc)
           )
@@ -60,6 +61,15 @@ module Api
         end
 
         private
+
+        # Ignores anything that isn't a real status rather than raising --
+        # an unrecognized value just means "no filter", which is a safe,
+        # boring behavior for a query param the client fully controls.
+        def filter_by_status(scope)
+          return scope unless Booking.statuses.key?(params[:status])
+
+          scope.where(status: params[:status])
+        end
 
         def idempotent(endpoint, payload)
           IdempotentOperation.new(
