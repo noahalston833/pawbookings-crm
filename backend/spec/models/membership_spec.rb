@@ -49,9 +49,9 @@ RSpec.describe Membership, type: :model do
     it "refuses to change the last owner's role to something else" do
       owner_membership = create(:membership, :owner)
 
-      owner_membership.role = "staff"
-      expect(owner_membership).not_to be_valid
+      expect(owner_membership.update(role: "staff")).to be(false)
       expect(owner_membership.errors[:role]).to be_present
+      expect(owner_membership.reload.role).to eq("owner")
     end
 
     it "allows changing an owner's role when another owner exists" do
@@ -59,8 +59,64 @@ RSpec.describe Membership, type: :model do
       owner_membership = create(:membership, :owner, business: business)
       create(:membership, :owner, business: business)
 
-      owner_membership.role = "admin"
-      expect(owner_membership).to be_valid
+      expect(owner_membership.update(role: "admin")).to be(true)
+    end
+
+    it "does not leave a business with zero owners when two removal attempts race", :concurrency do
+      business = create(:business)
+      owner_a = create(:membership, :owner, business: business)
+      owner_b = create(:membership, :owner, business: business)
+
+      ActiveRecord::Base.connection_pool.disconnect!
+      results = []
+      mutex = Mutex.new
+      started = 0
+
+      [ owner_a, owner_b ].map do |membership|
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            mutex.synchronize { started += 1 }
+            sleep 0.01 until started == 2
+
+            mutex.synchronize { results << membership.destroy }
+          end
+        end
+      end.each(&:join)
+
+      expect(results.count { |result| result != false }).to eq(1)
+      expect(business.memberships.owner.count).to eq(1)
+    end
+
+    it "does not leave a business with zero owners when a removal races a demotion", :concurrency do
+      business = create(:business)
+      owner_a = create(:membership, :owner, business: business)
+      owner_b = create(:membership, :owner, business: business)
+
+      ActiveRecord::Base.connection_pool.disconnect!
+      results = []
+      mutex = Mutex.new
+      started = 0
+
+      threads = [
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            mutex.synchronize { started += 1 }
+            sleep 0.01 until started == 2
+            mutex.synchronize { results << owner_a.destroy }
+          end
+        end,
+        Thread.new do
+          ActiveRecord::Base.connection_pool.with_connection do
+            mutex.synchronize { started += 1 }
+            sleep 0.01 until started == 2
+            mutex.synchronize { results << owner_b.update(role: "admin") }
+          end
+        end
+      ]
+      threads.each(&:join)
+
+      expect(results.count { |result| result != false }).to eq(1)
+      expect(business.memberships.owner.count).to eq(1)
     end
   end
 end
