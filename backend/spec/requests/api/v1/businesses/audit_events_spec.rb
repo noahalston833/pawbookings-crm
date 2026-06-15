@@ -41,4 +41,14 @@ RSpec.describe "Api::V1::Businesses::AuditEvents", type: :request do
     get "/api/v1/businesses/paws-and-play/audit_events", params: { per_page: 2, page: 2 }
     expect(response.parsed_body.size).to eq(1)
   end
+
+  it "never includes another business's audit events" do
+    other_business = create(:business, slug: "city-tails")
+    create_list(:audit_event, 5, business: other_business)
+    login_as(owner)
+
+    get "/api/v1/businesses/paws-and-play/audit_events"
+
+    expect(response.parsed_body.size).to eq(3)
+  end
 end

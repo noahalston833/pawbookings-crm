@@ -110,4 +110,45 @@ RSpec.describe BookingAcceptance, type: :model do
     expect(conflicts).to eq(1)
     expect(BookingAllocation.where(availability_slot: slot).count).to eq(1)
   end
+
+  it "does not let a concurrent accept and deny both decide the same booking", :concurrency do
+    slot = create(:availability_slot, service_offering: offering, business: business,
+                                       starts_at: 1.day.from_now, ends_at: 2.days.from_now, capacity: 5)
+    booking = make_booking(starts_at: slot.starts_at, ends_at: slot.ends_at)
+
+    ActiveRecord::Base.connection_pool.disconnect!
+    results = []
+    mutex = Mutex.new
+    started = 0
+
+    threads = [
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          mutex.synchronize { started += 1 }
+          sleep 0.01 until started == 2
+
+          result = described_class.new(booking: booking).call
+          mutex.synchronize { results << [ :accept, result ] }
+        end
+      end,
+      Thread.new do
+        ActiveRecord::Base.connection_pool.with_connection do
+          mutex.synchronize { started += 1 }
+          sleep 0.01 until started == 2
+
+          result = BookingDenial.new(booking: booking, reason: "double-booked elsewhere").call
+          mutex.synchronize { results << [ :deny, result ] }
+        end
+      end
+    ]
+    threads.each(&:join)
+
+    successes = results.select { |(_, result)| result.success? }
+    failures = results.reject { |(_, result)| result.success? }
+
+    expect(successes.size).to eq(1)
+    expect(failures.size).to eq(1)
+    expect(failures.first.last.error_code).to eq("invalid_state_transition")
+    expect(booking.reload.status).to eq(successes.first.first == :accept ? "accepted" : "denied")
+  end
 end

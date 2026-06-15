@@ -275,4 +275,71 @@ RSpec.describe "Api::V1::Businesses::Bookings", type: :request do
       expect(response).to have_http_status(:forbidden)
     end
   end
+
+  describe "cross-business isolation" do
+    let!(:other_business) { create(:business, slug: "city-tails") }
+    let!(:other_offering) { create(:service_offering, business: other_business) }
+    let!(:other_customer) { create(:user, password: "password123") }
+    let!(:other_pet) { create(:pet, business: other_business, user: other_customer) }
+
+    before { create(:membership, business: other_business, user: other_customer) }
+
+    def create_other_business_booking
+      login_as(other_customer)
+      post "/api/v1/businesses/city-tails/bookings",
+           params: {
+             booking: {
+               service_offering_id: other_offering.id,
+               pet_ids: [ other_pet.id ],
+               requested_starts_at: 1.day.from_now.iso8601,
+               requested_ends_at: 2.days.from_now.iso8601
+             }
+           },
+           headers: { "Idempotency-Key" => "other-biz-key" }
+      Booking.find(response.parsed_body["id"])
+    end
+
+    it "returns 404 for GET show on a booking from a different business" do
+      other_booking = create_other_business_booking
+      login_as(owner)
+
+      get "/api/v1/businesses/paws-and-play/bookings/#{other_booking.id}"
+
+      expect(response).to have_http_status(:not_found)
+    end
+
+    it "returns 404 (and makes no change) for accept on a booking from a different business" do
+      other_booking = create_other_business_booking
+      login_as(owner)
+
+      post "/api/v1/businesses/paws-and-play/bookings/#{other_booking.id}/accept",
+           headers: { "Idempotency-Key" => "cross-accept" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(other_booking.reload.status).to eq("pending")
+    end
+
+    it "returns 404 (and makes no change) for deny on a booking from a different business" do
+      other_booking = create_other_business_booking
+      login_as(owner)
+
+      post "/api/v1/businesses/paws-and-play/bookings/#{other_booking.id}/deny",
+           params: { booking: { reason: "not yours to deny" } },
+           headers: { "Idempotency-Key" => "cross-deny" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(other_booking.reload.status).to eq("pending")
+    end
+
+    it "returns 404 (and makes no change) for cancel on a booking from a different business" do
+      other_booking = create_other_business_booking
+      login_as(owner)
+
+      post "/api/v1/businesses/paws-and-play/bookings/#{other_booking.id}/cancel",
+           headers: { "Idempotency-Key" => "cross-cancel" }
+
+      expect(response).to have_http_status(:not_found)
+      expect(other_booking.reload.status).to eq("pending")
+    end
+  end
 end
