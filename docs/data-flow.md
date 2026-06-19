@@ -54,8 +54,8 @@ sequenceDiagram
     end
 ```
 
-See [docs/idempotency.md](idempotency.md) (added with the idempotency
-milestone) for the full key/fingerprint/expiry lifecycle.
+See [docs/idempotency.md](idempotency.md) for the full
+key/fingerprint/expiry lifecycle.
 
 ## Booking-approval data flow
 
@@ -88,6 +88,5 @@ sequenceDiagram
 Locking every affected slot in a consistent order (by primary key)
 before checking capacity is what prevents two concurrent accept
 requests from both seeing "capacity available" and both succeeding —
-see the concurrency test described in
-[docs/testing.md](testing.md) (added with the testing milestone) that
-exercises this with two simultaneous requests for the last slot.
+see the concurrency test described in [docs/testing.md](testing.md)
+that exercises this with two simultaneous requests for the last slot.

@@ -47,8 +47,7 @@ action runs:
    `404` — the same response as "exists but you can't access it" (see
    below).
 2. Require an authenticated `User` (see
-   [docs/authorization.md](authorization.md), added with the
-   authentication milestone).
+   [docs/authorization.md](authorization.md)).
 3. Look up that user's `Membership` in that business. If none exists,
    respond `404`, not `403` — a `403` would confirm the business
    exists and that the requester is merely unauthorized for it, which
@@ -130,11 +129,11 @@ instead of silently operating on another tenant's data.
 
 ## Cross-tenant access is tested, not assumed
 
-Tests exist (see [docs/testing.md](testing.md), added with the testing
-milestone) proving that a user from Business A gets a `404` — not a
-`403`, and not a `200` with someone else's data — for every tenant-owned
-resource in Business B: pets, bookings, services, availability, audit
-events, and membership management endpoints.
+Tests exist (see [docs/testing.md](testing.md)) proving that a user
+from Business A gets a `404` — not a `403`, and not a `200` with
+someone else's data — for every tenant-owned resource in Business B:
+pets, bookings, services, availability, audit events, and membership
+management endpoints.
 
 ## Optional platform-admin access
 

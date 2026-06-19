@@ -38,7 +38,7 @@ UI does or doesn't show:
 This means the API must be usable and safe from something other than
 the bundled frontend (e.g. `curl`, a future mobile client) without any
 loss of security. See [docs/authorization.md](authorization.md) for
-the specific policy layer (added once authorization is implemented).
+the specific policy layer.
 
 ## Domain model (entity-relationship diagram)
 
@@ -155,8 +155,8 @@ columns are used everywhere instead of relying on association chains.
   [ADR 0004](decisions/0004-application-layer-tenant-isolation.md)).
 - **No caching layer yet.** Nothing in this app is read-heavy enough
   to justify the invalidation complexity a cache would add. See
-  [docs/performance.md](performance.md) (added once query patterns are
-  established) for where caching was deliberately left out.
+  [docs/performance.md](performance.md) for where caching was
+  deliberately left out.
 - **Small service objects, not callback-heavy models.** Booking
   acceptance/denial/cancellation involves multiple steps (locking,
   capacity checks, allocation creation, audit logging) that don't
