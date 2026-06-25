@@ -1,0 +1,1049 @@
+openapi: 3.0.3
+info:
+  title: PawBookings CRM API
+  version: "1.0"
+  description: >
+    Multitenant booking API for dog daycare/training/boarding
+    businesses. The tenant (a Business) is resolved from a slug in the
+    path; see docs/tenancy.md. Authentication is a session cookie (see
+    docs/authorization.md and ADR 0002), not a bearer token — every
+    endpoint below except session/registration/public-lookup ones
+    requires a valid session cookie *and* an active Membership in the
+    business named by `{business_slug}`.
+servers:
+  - url: http://localhost:3000/api/v1
+    description: Local development
+
+tags:
+  - name: Session
+  - name: Registration
+  - name: Businesses
+  - name: Memberships
+  - name: Pets
+  - name: Services
+  - name: Availability
+  - name: Bookings
+  - name: Audit
+  - name: Settings
+
+security:
+  - cookieAuth: []
+
+paths:
+  /csrf_token:
+    get:
+      tags: [Session]
+      summary: Fetch a CSRF token
+      description: >
+        Must be called once before any mutating (non-GET) request; the
+        returned token is sent back as the `X-CSRF-Token` header. Does
+        not require authentication.
+      security: []
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  csrf_token: { type: string }
+
+  /session:
+    get:
+      tags: [Session]
+      summary: Restore the current session (SPA "am I logged in" check)
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Session]
+      summary: Log in
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                session:
+                  type: object
+                  properties:
+                    email: { type: string, format: email }
+                    password: { type: string, format: password }
+                  required: [email, password]
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user: { $ref: "#/components/schemas/User" }
+        "401":
+          description: Invalid credentials, or too many recent attempts
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "429":
+          description: Rate limited (10 attempts per 3 minutes per IP)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+    delete:
+      tags: [Session]
+      summary: Log out
+      responses:
+        "204":
+          description: Logged out
+
+  /business_registrations:
+    post:
+      tags: [Registration]
+      summary: Register a new business and its owner account
+      description: >
+        Creates a Business, a User, and an owner Membership in one
+        transaction, plus three default service offerings (daycare,
+        training, boarding). Logs the new owner in immediately.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                business_registration:
+                  type: object
+                  properties:
+                    business_name: { type: string }
+                    business_slug: { type: string, pattern: "^[a-z0-9]+(-[a-z0-9]+)*$" }
+                    time_zone: { type: string, example: "America/New_York" }
+                    owner_email: { type: string, format: email }
+                    owner_password: { type: string, format: password, minLength: 8 }
+                  required: [business_name, business_slug, time_zone, owner_email, owner_password]
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  business: { $ref: "#/components/schemas/Business" }
+                  user: { $ref: "#/components/schemas/User" }
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}:
+    get:
+      tags: [Businesses]
+      summary: Public business lookup (name/time zone only)
+      description: >
+        Unauthenticated on purpose — just enough for a customer
+        registration page to show a real business name before the
+        visitor has an account.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  slug: { type: string }
+                  name: { type: string }
+                  time_zone: { type: string }
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{business_slug}/customer_registration:
+    post:
+      tags: [Registration]
+      summary: Register as (or join as) a customer of this business
+      description: >
+        If already logged in, associates the current user with this
+        business as a customer. If not logged in, creates a new user
+        account. An email that already has an account, used while
+        logged out, is rejected with `email_already_registered` — it is
+        never silently attached to a business without proving
+        ownership via login.
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                customer_registration:
+                  type: object
+                  properties:
+                    email: { type: string, format: email }
+                    password: { type: string, format: password, minLength: 8 }
+      responses:
+        "201":
+          description: Created (or joined)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  role: { type: string, enum: [customer] }
+                  business:
+                    type: object
+                    properties:
+                      slug: { type: string }
+                      name: { type: string }
+        "422":
+          description: >
+            `email_already_registered` (logged out, email taken),
+            `already_a_member` (logged in, already a member), or
+            `validation_failed`
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /businesses/{business_slug}/memberships:
+    get:
+      tags: [Memberships]
+      summary: List members (owner/admin only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Membership" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{business_slug}/memberships/{id}:
+    patch:
+      tags: [Memberships]
+      summary: Change a member's role
+      description: >
+        Owner can change any role, including granting owner. Admin can
+        change staff/customer roles but can never touch an owner's
+        membership or grant owner. The business's last owner's role can
+        never be changed. See docs/authorization.md.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                membership:
+                  type: object
+                  properties:
+                    role: { type: string, enum: [owner, admin, staff, customer] }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Membership" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+    delete:
+      tags: [Memberships]
+      summary: Remove a member
+      description: >
+        Owner can remove any member except the business's last owner.
+        Admin can never remove an owner.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "204":
+          description: Removed
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: Would remove the business's last owner
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /businesses/{business_slug}/pets:
+    get:
+      tags: [Pets]
+      summary: List pets
+      description: >
+        Owner/admin/staff see every pet in the business (with owner
+        email); a customer sees only their own.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Pet" }
+    post:
+      tags: [Pets]
+      summary: Register a pet (customer only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pet: { $ref: "#/components/schemas/PetInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pet" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}/pets/{id}:
+    get:
+      tags: [Pets]
+      summary: Show a pet
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pet" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+    patch:
+      tags: [Pets]
+      summary: Update or archive a pet
+      description: >
+        Owner/admin can edit any pet; a customer can edit only their
+        own. Staff cannot edit at all (read-only directory access).
+        There is no destroy — set `status: archived` instead.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pet: { $ref: "#/components/schemas/PetInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pet" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}/service_offerings:
+    get:
+      tags: [Services]
+      summary: List service offerings
+      description: Every membership role can view, including inactive ones.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/ServiceOffering" }
+    post:
+      tags: [Services]
+      summary: Create a service offering (owner/admin only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service_offering: { $ref: "#/components/schemas/ServiceOfferingInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOffering" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}/service_offerings/{id}:
+    get:
+      tags: [Services]
+      summary: Show a service offering
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOffering" }
+    patch:
+      tags: [Services]
+      summary: Update a service offering (owner/admin only)
+      description: >
+        There is no destroy — set `active: false` instead; past
+        bookings still reference this record.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                service_offering: { $ref: "#/components/schemas/ServiceOfferingInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/ServiceOffering" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}/service_offerings/{service_offering_id}/availability_slots:
+    get:
+      tags: [Availability]
+      summary: List availability slots for a service (management view)
+      description: >
+        Plain capacity/active fields, no computed remaining capacity —
+        contrast with the customer-facing `/availability` endpoint below.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/ServiceOfferingId"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AvailabilitySlot" }
+    post:
+      tags: [Availability]
+      summary: Create an availability slot (owner/admin only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/ServiceOfferingId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                availability_slot: { $ref: "#/components/schemas/AvailabilitySlotInput" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AvailabilitySlot" }
+        "422":
+          description: >
+            `validation_failed` — including a duplicate window for the
+            same service offering (unique constraint)
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /businesses/{business_slug}/service_offerings/{service_offering_id}/availability_slots/{id}:
+    get:
+      tags: [Availability]
+      summary: Show an availability slot
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/ServiceOfferingId"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AvailabilitySlot" }
+    patch:
+      tags: [Availability]
+      summary: Update an availability slot (owner/admin only)
+      description: Typically used to adjust capacity or deactivate a slot.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/ServiceOfferingId"
+        - $ref: "#/components/parameters/Id"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                availability_slot: { $ref: "#/components/schemas/AvailabilitySlotInput" }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AvailabilitySlot" }
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}/service_offerings/{id}/availability:
+    get:
+      tags: [Availability]
+      summary: Customer-facing bookable availability
+      description: >
+        Active, future slots only, within a date range (defaults to the
+        next 14 days, capped at 60), each annotated with a computed
+        `remaining_capacity` (capacity minus already-*accepted*
+        bookings — pending requests reserve nothing, see ADR 0005).
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - name: id
+          in: path
+          required: true
+          description: Service offering id
+          schema: { type: integer }
+        - name: from
+          in: query
+          schema: { type: string, format: date }
+        - name: to
+          in: query
+          schema: { type: string, format: date }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  time_zone: { type: string }
+                  slots:
+                    type: array
+                    items:
+                      allOf:
+                        - $ref: "#/components/schemas/AvailabilitySlot"
+                        - type: object
+                          properties:
+                            remaining_capacity: { type: integer }
+
+  /businesses/{business_slug}/bookings:
+    get:
+      tags: [Bookings]
+      summary: List bookings
+      description: >
+        Owner/admin/staff see every booking in the business; a customer
+        sees only their own. Optional `status` filters server-side.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, accepted, denied, cancelled, completed]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Booking" }
+        "404":
+          $ref: "#/components/responses/NotFound"
+    post:
+      tags: [Bookings]
+      summary: Request a booking (customer only)
+      description: >
+        Creates a `pending` booking. Reserves no capacity — capacity is
+        only checked/spent when the business accepts (ADR 0005).
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking:
+                  type: object
+                  properties:
+                    service_offering_id: { type: integer }
+                    pet_ids: { type: array, items: { type: integer } }
+                    requested_starts_at: { type: string, format: date-time }
+                    requested_ends_at: { type: string, format: date-time }
+                    notes: { type: string, nullable: true }
+                  required: [service_offering_id, pet_ids, requested_starts_at, requested_ends_at]
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Booking" }
+        "400":
+          $ref: "#/components/responses/MissingIdempotencyKey"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/IdempotencyConflict"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+  /businesses/{business_slug}/bookings/{id}:
+    get:
+      tags: [Bookings]
+      summary: Show a booking
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Booking" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /businesses/{business_slug}/bookings/{id}/accept:
+    post:
+      tags: [Bookings]
+      summary: Accept a pending booking (owner/admin only)
+      description: >
+        Locks every required availability slot (one per night for
+        boarding), checks capacity, creates allocations, and marks the
+        booking accepted — all in one transaction. All nights must have
+        capacity or none are reserved.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Booking" }
+        "400":
+          $ref: "#/components/responses/MissingIdempotencyKey"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          description: >
+            `availability_conflict` (capacity gone) or a replayed
+            idempotency conflict
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+        "422":
+          description: "`invalid_state_transition` — already decided"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /businesses/{business_slug}/bookings/{id}/deny:
+    post:
+      tags: [Bookings]
+      summary: Deny a pending booking (owner/admin only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                booking:
+                  type: object
+                  properties:
+                    reason: { type: string }
+      responses:
+        "200":
+          description: Denied
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Booking" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: "`invalid_state_transition` — already decided"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /businesses/{business_slug}/bookings/{id}/cancel:
+    post:
+      tags: [Bookings]
+      summary: Cancel a booking
+      description: >
+        Owner/admin can cancel any booking; a customer can cancel only
+        their own. Cancellable from `pending` or `accepted`; cancelling
+        an accepted booking releases its allocations.
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Id"
+        - $ref: "#/components/parameters/IdempotencyKey"
+      responses:
+        "200":
+          description: Cancelled
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Booking" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          description: "`invalid_state_transition` — not pending/accepted"
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Error" }
+
+  /businesses/{business_slug}/audit_events:
+    get:
+      tags: [Audit]
+      summary: List audit events (owner/admin only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+        - $ref: "#/components/parameters/Page"
+        - $ref: "#/components/parameters/PerPage"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/AuditEvent" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /businesses/{business_slug}/business_settings:
+    get:
+      tags: [Settings]
+      summary: View business settings (owner/admin)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessSettings" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    patch:
+      tags: [Settings]
+      summary: Update business settings (owner only)
+      parameters:
+        - $ref: "#/components/parameters/BusinessSlug"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                business:
+                  type: object
+                  properties:
+                    name: { type: string }
+                    time_zone: { type: string }
+                    settings: { type: object }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BusinessSettings" }
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "422":
+          $ref: "#/components/responses/ValidationFailed"
+
+components:
+  securitySchemes:
+    cookieAuth:
+      type: apiKey
+      in: cookie
+      name: _pawbookings_crm_session
+      description: >
+        Rails session cookie (HttpOnly, Secure in production, SameSite=Lax).
+        Obtained via POST /session. Mutating requests additionally
+        require an `X-CSRF-Token` header (see GET /csrf_token).
+
+  parameters:
+    BusinessSlug:
+      name: business_slug
+      in: path
+      required: true
+      schema: { type: string }
+    ServiceOfferingId:
+      name: service_offering_id
+      in: path
+      required: true
+      schema: { type: integer }
+    Id:
+      name: id
+      in: path
+      required: true
+      schema: { type: integer }
+    Page:
+      name: page
+      in: query
+      schema: { type: integer, default: 1 }
+    PerPage:
+      name: per_page
+      in: query
+      schema: { type: integer, default: 25, maximum: 100 }
+    IdempotencyKey:
+      name: Idempotency-Key
+      in: header
+      required: true
+      schema: { type: string }
+      description: A client-generated unique key per logical action (see docs/idempotency.md).
+
+  responses:
+    Unauthorized:
+      description: Not logged in
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Logged in, but not permitted to perform this action
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: >
+        Not found, or logged in with no membership in this business
+        (same response either way — see docs/tenancy.md)
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ValidationFailed:
+      description: Validation failed
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    MissingIdempotencyKey:
+      description: The Idempotency-Key header is required and was not sent
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    IdempotencyConflict:
+      description: The Idempotency-Key was already used with a different request body
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+
+  schemas:
+    Error:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code: { type: string, example: "validation_failed" }
+            message: { type: string }
+            details: { type: object }
+            request_id: { type: string }
+
+    User:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string, format: email }
+        memberships:
+          type: array
+          items:
+            type: object
+            properties:
+              business_slug: { type: string }
+              business_name: { type: string }
+              role: { type: string, enum: [owner, admin, staff, customer] }
+
+    Business:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        slug: { type: string }
+        time_zone: { type: string }
+
+    BusinessSettings:
+      allOf:
+        - $ref: "#/components/schemas/Business"
+        - type: object
+          properties:
+            settings: { type: object }
+
+    Membership:
+      type: object
+      properties:
+        id: { type: integer }
+        role: { type: string, enum: [owner, admin, staff, customer] }
+        user:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+
+    PetInput:
+      type: object
+      properties:
+        name: { type: string }
+        species: { type: string, enum: [dog] }
+        breed: { type: string, nullable: true }
+        birth_date: { type: string, format: date, nullable: true }
+        weight: { type: number, nullable: true }
+        sex: { type: string, enum: [male, female] }
+        vaccination_status: { type: string, enum: [up_to_date, expired, unknown] }
+        vaccination_expires_on: { type: string, format: date, nullable: true }
+        feeding_instructions: { type: string, nullable: true }
+        medication_instructions: { type: string, nullable: true }
+        behavioral_notes: { type: string, nullable: true }
+        emergency_notes: { type: string, nullable: true }
+        status: { type: string, enum: [active, archived] }
+
+    Pet:
+      allOf:
+        - $ref: "#/components/schemas/PetInput"
+        - type: object
+          properties:
+            id: { type: integer }
+            owner:
+              type: object
+              properties:
+                id: { type: integer }
+                email: { type: string }
+
+    ServiceOfferingInput:
+      type: object
+      properties:
+        name: { type: string }
+        service_kind: { type: string, enum: [daycare, training, boarding] }
+        description: { type: string, nullable: true }
+        active: { type: boolean }
+        default_capacity: { type: integer, minimum: 1 }
+        default_duration_minutes: { type: integer, minimum: 1, nullable: true }
+        customer_facing_instructions: { type: string, nullable: true }
+
+    ServiceOffering:
+      allOf:
+        - $ref: "#/components/schemas/ServiceOfferingInput"
+        - type: object
+          properties:
+            id: { type: integer }
+
+    AvailabilitySlotInput:
+      type: object
+      properties:
+        starts_at: { type: string, format: date-time }
+        ends_at: { type: string, format: date-time }
+        capacity: { type: integer, minimum: 1 }
+        active: { type: boolean }
+
+    AvailabilitySlot:
+      allOf:
+        - $ref: "#/components/schemas/AvailabilitySlotInput"
+        - type: object
+          properties:
+            id: { type: integer }
+
+    Booking:
+      type: object
+      properties:
+        id: { type: integer }
+        status: { type: string, enum: [pending, accepted, denied, cancelled, completed] }
+        requested_starts_at: { type: string, format: date-time }
+        requested_ends_at: { type: string, format: date-time }
+        notes: { type: string, nullable: true }
+        denial_reason: { type: string, nullable: true }
+        service_offering:
+          type: object
+          properties:
+            id: { type: integer }
+            name: { type: string }
+        customer:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+        pets:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              name: { type: string }
+
+    AuditEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        action: { type: string, example: "booking.accepted" }
+        actor:
+          type: object
+          properties:
+            id: { type: integer }
+            email: { type: string }
+        target_type: { type: string, nullable: true }
+        target_id: { type: integer, nullable: true }
+        metadata: { type: object }
+        created_at: { type: string, format: date-time }
