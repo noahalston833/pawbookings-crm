@@ -44,7 +44,6 @@ group :development, :test do
   gem "rspec-rails"
   gem "factory_bot_rails"
   gem "faker"
-  gem "shoulda-matchers"
 
   # Detects N+1 queries and unused eager loading; raises in test so a
   # regression fails the suite instead of only showing up as a slow
