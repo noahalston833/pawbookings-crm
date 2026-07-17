@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { useBusiness } from './useBusiness'
 import { useCustomerRegistration } from './useCustomerRegistration'
 
@@ -72,15 +73,14 @@ export function CustomerRegistrationPage() {
       )}
 
       {error && (
-        <p role="alert">
-          {error.message}
+        <ApiErrorAlert error={error}>
           {error.code === 'email_already_registered' && (
             <>
               {' '}
               <Link to="/login" state={{ from: `/${businessSlug}/signup` }}>Log in instead</Link>
             </>
           )}
-        </p>
+        </ApiErrorAlert>
       )}
     </main>
   )

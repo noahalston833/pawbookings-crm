@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { useCreatePet } from './usePets'
 
 const initialForm = {
@@ -113,7 +114,7 @@ export function NewPetPage() {
           <label htmlFor={ids.emergency}>Emergency notes</label>
           <textarea id={ids.emergency} value={form.emergency_notes} onChange={updateField('emergency_notes')} />
         </div>
-        {error && <p role="alert">{error.message}</p>}
+        {error && <ApiErrorAlert error={error} />}
         <button type="submit" disabled={createPet.isPending}>
           {createPet.isPending ? 'Saving…' : 'Save pet'}
         </button>

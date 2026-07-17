@@ -4,6 +4,7 @@ import { useBusiness } from '../businesses/useBusiness'
 import { useServiceOffering } from '../services/useServices'
 import { useAvailabilitySlots, useCreateAvailabilitySlot, useUpdateAvailabilitySlot } from './useAvailabilitySlots'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { zonedTimeToUtcIso } from '../lib/timeZone'
 
 const BLANK_SLOT_FORM = { starts_at: '', ends_at: '', capacity: '' }
@@ -67,7 +68,7 @@ export function ManageAvailabilitySlotsPage() {
       <h2>Availability for {service?.name ?? 'this service'}</h2>
       <p>Times are shown and entered in the business&apos;s time zone ({timeZone}).</p>
 
-      {updateError && <p role="alert">{updateError.message}</p>}
+      {updateError && <ApiErrorAlert error={updateError} />}
       {slots.length === 0 ? (
         <p>No slots have been created yet.</p>
       ) : (
@@ -101,7 +102,7 @@ export function ManageAvailabilitySlotsPage() {
       )}
 
       <h3>Add a slot</h3>
-      {createError && <p role="alert">{createError.message}</p>}
+      {createError && <ApiErrorAlert error={createError} />}
       <form onSubmit={handleCreate}>
         <p>
           <label htmlFor="slot-starts-at">Starts at</label>

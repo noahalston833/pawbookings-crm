@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useCreateService, useServiceOffering, useUpdateService } from './useServices'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 
 const SERVICE_KINDS = [ 'daycare', 'training', 'boarding' ]
 
@@ -69,7 +70,7 @@ export function ServiceFormPage() {
   return (
     <section>
       <h2>{isEditing ? 'Edit service' : 'New service'}</h2>
-      {error && <p role="alert">{error.message}</p>}
+      {error && <ApiErrorAlert error={error} />}
       <form onSubmit={handleSubmit}>
         <p>
           <label htmlFor="service-name">Name</label>

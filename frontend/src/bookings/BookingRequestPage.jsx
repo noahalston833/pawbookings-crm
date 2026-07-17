@@ -1,6 +1,7 @@
 import { useId, useMemo, useRef, useState } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { useServiceOffering } from '../services/useServices'
 import { useAvailability } from '../availability/useAvailability'
 import { AvailabilityList } from '../availability/AvailabilityList'
@@ -114,7 +115,7 @@ export function BookingRequestPage() {
             <textarea id={notesId} value={notes} onChange={(event) => setNotes(event.target.value)} />
           </div>
 
-          {error && <p role="alert">{error.message}</p>}
+          {error && <ApiErrorAlert error={error} />}
 
           <button type="submit" disabled={!canSubmit}>
             {createBooking.isPending ? 'Submitting…' : 'Request booking'}

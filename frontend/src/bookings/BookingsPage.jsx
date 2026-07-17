@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { useAcceptBooking, useBookings, useCancelBooking, useDenyBooking } from './useBookings'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { useCurrentMembership } from '../auth/useCurrentMembership'
 
 const CANCELLABLE_STATUSES = new Set([ 'pending', 'accepted' ])
@@ -56,7 +57,7 @@ export function BookingsPage() {
   return (
     <section>
       <h2>{isStaffOrAbove ? 'Bookings queue' : 'My bookings'}</h2>
-      {actionError && <p role="alert">{actionError.message}</p>}
+      {actionError && <ApiErrorAlert error={actionError} />}
 
       <p>
         <label htmlFor="booking-status-filter">Status</label>

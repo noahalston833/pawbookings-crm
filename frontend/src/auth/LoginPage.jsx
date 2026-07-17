@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from './AuthContext'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 
 // Frontend auth state is for usability only; the backend enforces every
 // permission regardless of what this page does (see docs/authorization.md).
@@ -53,9 +54,7 @@ export function LoginPage() {
             onChange={(event) => setPassword(event.target.value)}
           />
         </div>
-        {loginError && (
-          <p role="alert">{loginError.message}</p>
-        )}
+        {loginError && <ApiErrorAlert error={loginError} />}
         <button type="submit" disabled={isLoggingIn}>
           {isLoggingIn ? 'Logging in…' : 'Log in'}
         </button>

@@ -1,6 +1,7 @@
 import { useId, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { useBusinessSignup } from './useBusinessSignup'
 
 const TIME_ZONES = typeof Intl.supportedValuesOf === 'function'
@@ -76,7 +77,7 @@ export function BusinessSignupPage() {
             onChange={updateField('owner_password')}
           />
         </div>
-        {error && <p role="alert">{error.message}</p>}
+        {error && <ApiErrorAlert error={error} />}
         <button type="submit" disabled={signup.isPending}>
           {signup.isPending ? 'Creating your business…' : 'Create business'}
         </button>

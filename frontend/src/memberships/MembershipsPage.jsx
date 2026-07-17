@@ -2,6 +2,7 @@ import { useParams } from 'react-router-dom'
 import { useCurrentMembership } from '../auth/useCurrentMembership'
 import { useMemberships, useRemoveMembership, useUpdateMembershipRole } from './useMemberships'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 
 const ALL_ROLES = [ 'owner', 'admin', 'staff', 'customer' ]
 
@@ -36,7 +37,7 @@ export function MembershipsPage() {
         An admin cannot change or remove an owner&apos;s membership, and cannot grant owner access -- only
         an owner can. The last owner of a business can never be removed or demoted.
       </p>
-      {error && <p role="alert">{error.message}</p>}
+      {error && <ApiErrorAlert error={error} />}
       {memberships.length === 0 ? (
         <p>No members found.</p>
       ) : (

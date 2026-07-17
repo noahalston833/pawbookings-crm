@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getApiError } from '../api/client'
+import { ApiErrorAlert } from '../components/ApiErrorAlert'
 import { useBusinessSettings, useUpdateBusinessSettings } from './useBusinessSettings'
 
 const TIME_ZONES = typeof Intl.supportedValuesOf === 'function'
@@ -57,7 +58,7 @@ export function BusinessSettingsPage() {
             ))}
           </select>
         </div>
-        {error && <p role="alert">{error.message}</p>}
+        {error && <ApiErrorAlert error={error} />}
         {saved && !error && <p>Saved.</p>}
         <button type="submit" disabled={updateSettings.isPending}>Save settings</button>
       </form>
