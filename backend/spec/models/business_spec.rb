@@ -35,6 +35,15 @@ RSpec.describe Business, type: :model do
     expect(business).to be_valid
   end
 
+  it "accepts an IANA time zone outside Rails' curated friendly-name list" do
+    # Africa/Abidjan is a real tzdata identifier the frontend's
+    # Intl.supportedValuesOf('timeZone') offers, but it isn't one of the
+    # ~134 entries in ActiveSupport::TimeZone::MAPPING (a display-name
+    # list for time_zone_select, not an exhaustive valid set).
+    business = build(:business, time_zone: "Africa/Abidjan")
+    expect(business).to be_valid
+  end
+
   describe "associations" do
     it "has many memberships and users through them" do
       business = create(:business)
