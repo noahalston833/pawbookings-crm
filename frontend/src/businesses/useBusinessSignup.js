@@ -9,8 +9,6 @@ export function useBusinessSignup() {
       const { data } = await client.post('/business_registrations', { business_registration: attributes })
       return data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [ 'currentUser' ] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [ 'currentUser' ] }),
   })
 }

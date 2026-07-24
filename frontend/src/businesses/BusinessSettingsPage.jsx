@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getApiError } from '../api/client'
 import { ApiErrorAlert } from '../components/ApiErrorAlert'
+import { detectTimeZone } from '../lib/timeZone'
 import { useBusinessSettings, useUpdateBusinessSettings } from './useBusinessSettings'
 
 const TIME_ZONES = typeof Intl.supportedValuesOf === 'function'
@@ -16,7 +17,7 @@ export function BusinessSettingsPage() {
   const { data: business, isLoading, isError } = useBusinessSettings(businessSlug)
   const updateSettings = useUpdateBusinessSettings(businessSlug)
 
-  const [ form, setForm ] = useState({ name: '', time_zone: 'UTC' })
+  const [ form, setForm ] = useState({ name: '', time_zone: detectTimeZone() })
   const [ saved, setSaved ] = useState(false)
 
   useEffect(() => {

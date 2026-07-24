@@ -13,6 +13,20 @@ export function zonedTimeToUtcIso(dateTimeLocalValue, timeZone) {
   return new Date(naiveUtc.getTime() - offsetMs).toISOString()
 }
 
+// A sensible default for "what time zone is this business/visitor in"
+// pickers. Deliberately NOT a hardcoded 'UTC' string: that value isn't
+// itself included in every engine's Intl.supportedValuesOf('timeZone')
+// list, so using it as a controlled <select>'s initial state can silently
+// mismatch what the browser actually renders as selected.
+export function detectTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone
+  } catch {
+    return 'UTC'
+  }
+}
+
+
 // UTC ISO string from the API -> "YYYY-MM-DDTHH:mm" for pre-filling a
 // <input type="datetime-local"> with the business's local wall-clock time.
 export function utcIsoToZonedInputValue(isoString, timeZone) {

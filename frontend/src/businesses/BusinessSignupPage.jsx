@@ -2,6 +2,7 @@ import { useId, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { getApiError } from '../api/client'
 import { ApiErrorAlert } from '../components/ApiErrorAlert'
+import { detectTimeZone } from '../lib/timeZone'
 import { useBusinessSignup } from './useBusinessSignup'
 
 const TIME_ZONES = typeof Intl.supportedValuesOf === 'function'
@@ -18,7 +19,7 @@ export function BusinessSignupPage() {
   const [ form, setForm ] = useState({
     business_name: '',
     business_slug: '',
-    time_zone: 'UTC',
+    time_zone: detectTimeZone(),
     owner_email: '',
     owner_password: '',
   })

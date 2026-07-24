@@ -12,8 +12,6 @@ export function useCustomerRegistration(businessSlug) {
       )
       return data
     },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: [ 'currentUser' ] })
-    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: [ 'currentUser' ] }),
   })
 }
