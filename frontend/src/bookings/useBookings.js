@@ -1,7 +1,18 @@
-import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { client } from '../api/client'
 
 const PER_PAGE = 25
+
+export function useBooking(businessSlug, bookingId) {
+  return useQuery({
+    queryKey: [ 'booking', businessSlug, bookingId ],
+    queryFn: async () => {
+      const { data } = await client.get(`/businesses/${businessSlug}/bookings/${bookingId}`)
+      return data
+    },
+    enabled: Boolean(businessSlug && bookingId),
+  })
+}
 
 // Filtering happens server-side (?status=) rather than fetching every
 // booking and filtering in the browser -- a business accumulates bookings

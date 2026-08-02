@@ -1,45 +1,28 @@
-import { Link, Outlet, useParams } from 'react-router-dom'
+import { Outlet, useParams } from 'react-router-dom'
 import { useAuth } from '../auth/AuthContext'
 import { useCurrentMembership } from '../auth/useCurrentMembership'
 import { useBusiness } from '../businesses/useBusiness'
+import { AppShell } from '../components/AppShell'
+import { LoadingState } from '../components/LoadingState'
+import { buildBusinessNavItems } from '../lib/businessNavigation'
+import { roleLabel } from '../lib/roleLabels'
 
 export function BusinessLayout() {
   const { businessSlug } = useParams()
   const { user, logout } = useAuth()
-  const { data: business } = useBusiness(businessSlug)
+  const { data: business, isLoading } = useBusiness(businessSlug)
   const membership = useCurrentMembership()
-  const isOwnerOrAdmin = [ 'owner', 'admin' ].includes(membership?.role)
 
   return (
-    <div>
-      <header>
-        <p>
-          <Link to="/">All businesses</Link>
-        </p>
-        <h1>{business?.name ?? businessSlug}</h1>
-        <nav aria-label="Business navigation">
-          <ul>
-            <li><Link to={`/${businessSlug}/services`}>Services</Link></li>
-            <li><Link to={`/${businessSlug}/pets`}>Pets</Link></li>
-            <li><Link to={`/${businessSlug}/bookings`}>Bookings</Link></li>
-            {isOwnerOrAdmin && (
-              <>
-                <li><Link to={`/${businessSlug}/members`}>Members</Link></li>
-                <li><Link to={`/${businessSlug}/audit-log`}>Audit log</Link></li>
-              </>
-            )}
-            {membership?.role === 'owner' && (
-              <li><Link to={`/${businessSlug}/settings`}>Settings</Link></li>
-            )}
-          </ul>
-        </nav>
-        <p>
-          {user.email} ({membership?.role})
-          {' '}
-          <button type="button" onClick={() => logout()}>Log out</button>
-        </p>
-      </header>
-      <Outlet />
-    </div>
+    <AppShell
+      homeTo="/"
+      businessName={business?.name ?? businessSlug}
+      navItems={buildBusinessNavItems(businessSlug, membership?.role)}
+      userEmail={user.email}
+      roleLabel={roleLabel(membership?.role)}
+      onLogout={() => logout()}
+    >
+      {isLoading ? <LoadingState label="Loading business…" /> : <Outlet />}
+    </AppShell>
   )
 }

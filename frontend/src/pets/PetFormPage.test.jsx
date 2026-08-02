@@ -3,7 +3,9 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { NewPetPage } from './NewPetPage'
+import { PetFormPage } from './PetFormPage'
+import { AuthProvider } from '../auth/AuthContext'
+import { ToastProvider } from '../components/ToastContext'
 import { client } from '../api/client'
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -11,29 +13,44 @@ vi.mock('../api/client', async (importOriginal) => {
   return { ...actual, client: { get: vi.fn(), post: vi.fn(), patch: vi.fn() } }
 })
 
-function renderNewPetPage() {
+const CUSTOMER_USER = {
+  id: 9,
+  email: 'customer@example.com',
+  memberships: [ { business_slug: 'paws-and-play', business_name: 'Paws & Play', role: 'customer' } ],
+}
+
+function renderPetFormPage() {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  client.get.mockImplementation((url) => {
+    if (url === '/session') return Promise.resolve({ data: { user: CUSTOMER_USER } })
+    return Promise.reject(new Error(`unexpected GET ${url}`))
+  })
+
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[ '/paws-and-play/pets/new' ]}>
-        <Routes>
-          <Route path=":businessSlug/pets/new" element={<NewPetPage />} />
-          <Route path=":businessSlug/pets" element={<p>Pets page</p>} />
-        </Routes>
+        <AuthProvider>
+          <ToastProvider>
+            <Routes>
+              <Route path=":businessSlug/pets/new" element={<PetFormPage />} />
+              <Route path=":businessSlug/pets" element={<p>Pets page</p>} />
+            </Routes>
+          </ToastProvider>
+        </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
   )
 }
 
-describe('NewPetPage', () => {
+describe('PetFormPage', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('submits the pet as a dog and navigates to the pets list on success', async () => {
     client.post.mockResolvedValue({ data: { id: 1, name: 'Rex', species: 'dog' } })
     const user = userEvent.setup()
-    renderNewPetPage()
+    renderPetFormPage()
 
-    await user.type(screen.getByLabelText(/^name$/i), 'Rex')
+    await user.type(await screen.findByLabelText(/^name/i), 'Rex')
     await user.click(screen.getByRole('button', { name: /save pet/i }))
 
     await waitFor(() => {
@@ -58,9 +75,9 @@ describe('NewPetPage', () => {
       },
     })
     const user = userEvent.setup()
-    renderNewPetPage()
+    renderPetFormPage()
 
-    await user.type(screen.getByLabelText(/^name$/i), 'Rex')
+    await user.type(await screen.findByLabelText(/^name/i), 'Rex')
     await user.click(screen.getByRole('button', { name: /save pet/i }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(/could not be processed/i)
