@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BookingRequestPage } from './BookingRequestPage'
+import { ToastProvider } from '../components/ToastContext'
 import { client } from '../api/client'
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -45,10 +46,12 @@ function renderBookingRequestPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[ '/paws-and-play/services/5/book' ]}>
-        <Routes>
-          <Route path=":businessSlug/services/:serviceOfferingId/book" element={<BookingRequestPage />} />
-          <Route path=":businessSlug/bookings" element={<p>Bookings page</p>} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path=":businessSlug/services/:serviceOfferingId/book" element={<BookingRequestPage />} />
+            <Route path=":businessSlug/bookings" element={<p>Bookings page</p>} />
+          </Routes>
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>
   )

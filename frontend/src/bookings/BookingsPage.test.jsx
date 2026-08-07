@@ -1,10 +1,11 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BookingsPage } from './BookingsPage'
 import { AuthProvider } from '../auth/AuthContext'
+import { ToastProvider } from '../components/ToastContext'
 import { client } from '../api/client'
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -50,9 +51,11 @@ function renderBookingsPage({ user }) {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[ '/paws-and-play/bookings' ]}>
         <AuthProvider>
-          <Routes>
-            <Route path=":businessSlug/bookings" element={<BookingsPage />} />
-          </Routes>
+          <ToastProvider>
+            <Routes>
+              <Route path=":businessSlug/bookings" element={<BookingsPage />} />
+            </Routes>
+          </ToastProvider>
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>
@@ -77,6 +80,9 @@ describe('BookingsPage', () => {
 
     expect(await screen.findByRole('heading', { name: /bookings queue/i })).toBeInTheDocument()
     await user.click(await screen.findByRole('button', { name: /^accept$/i }))
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /^accept$/i }))
 
     await waitFor(() => {
       expect(client.post).toHaveBeenCalledWith(
