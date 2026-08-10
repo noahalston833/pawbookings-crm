@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { MembershipsPage } from './MembershipsPage'
 import { AuthProvider } from '../auth/AuthContext'
+import { ToastProvider } from '../components/ToastContext'
 import { client } from '../api/client'
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -37,9 +38,11 @@ function renderMembershipsPage() {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[ '/paws-and-play/members' ]}>
         <AuthProvider>
-          <Routes>
-            <Route path=":businessSlug/members" element={<MembershipsPage />} />
-          </Routes>
+          <ToastProvider>
+            <Routes>
+              <Route path=":businessSlug/members" element={<MembershipsPage />} />
+            </Routes>
+          </ToastProvider>
         </AuthProvider>
       </MemoryRouter>
     </QueryClientProvider>

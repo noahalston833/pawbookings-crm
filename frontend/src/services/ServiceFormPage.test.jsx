@@ -4,6 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { ServiceFormPage } from './ServiceFormPage'
+import { ToastProvider } from '../components/ToastContext'
 import { client } from '../api/client'
 
 vi.mock('../api/client', async (importOriginal) => {
@@ -16,10 +17,12 @@ function renderServiceFormPage() {
   return render(
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={[ '/paws-and-play/services/new' ]}>
-        <Routes>
-          <Route path=":businessSlug/services/new" element={<ServiceFormPage />} />
-          <Route path=":businessSlug/services" element={<p>Services page</p>} />
-        </Routes>
+        <ToastProvider>
+          <Routes>
+            <Route path=":businessSlug/services/new" element={<ServiceFormPage />} />
+            <Route path=":businessSlug/services" element={<p>Services page</p>} />
+          </Routes>
+        </ToastProvider>
       </MemoryRouter>
     </QueryClientProvider>
   )
