@@ -10,7 +10,7 @@ for their pets.
 - **Backend:** Ruby on Rails 8 (API mode), PostgreSQL, Pundit
   (authorization), Solid Queue (background jobs)
 - **Frontend:** React (JavaScript, no TypeScript), Vite, React Router,
-  TanStack Query
+  TanStack Query, Bootstrap 5 + react-bootstrap (UI/styling)
 
 ## Prerequisites
 
@@ -69,8 +69,8 @@ two weeks. `db:seed` is idempotent — safe to run again at any time.
 ## Running tests
 
 ```sh
-cd backend && bundle exec rspec        # 182 examples
-cd frontend && npm test                # 16 tests
+cd backend && bundle exec rspec        # 183 examples
+cd frontend && npm test                # 34 tests
 ```
 
 See [docs/testing.md](docs/testing.md) for what's covered (including
@@ -114,6 +114,9 @@ docs/      Architecture notes, ADRs, and the API reference
   what was deliberately not built (yet)
 - [Testing](docs/testing.md) — test pyramid, the concurrency-testing
   pattern, and coverage boundaries
+- [Frontend styling conventions](docs/frontend-style.md) — the design
+  system, shared component library, and how to build a new page
+  consistently
 - [Architecture decision records](docs/decisions/) — specific
   decisions made over a plausible alternative, and why
 - [openapi.yaml](docs/openapi.yaml) — full API reference (paste into
